@@ -797,6 +797,56 @@ fn write_cel_emit_fixtures(out_dir: &std::path::Path) {
             extras: vec![],
             expect_ret: "bool",
         },
+        // --- single-variable filter over scalar lists
+        CelCheck {
+            name: "bool_list_literal_filter",
+            expr: "[this, !this, this].filter(b, b).size() <= 1",
+            this_ty: CelType::Bool,
+            extras: vec![],
+            expect_ret: "bool",
+        },
+        CelCheck {
+            name: "bool_list_filter",
+            expr: "this.filter(b, !b).size() == 0",
+            this_ty: CelType::List(Box::new(CelType::Bool)),
+            extras: vec![],
+            expect_ret: "bool",
+        },
+        CelCheck {
+            name: "int_list_filter",
+            expr: "this.filter(x, x > 0).size() >= 0",
+            this_ty: CelType::List(Box::new(CelType::Int)),
+            extras: vec![],
+            expect_ret: "bool",
+        },
+        CelCheck {
+            name: "uint_list_filter",
+            expr: "this.filter(x, x > 0u).size() >= 0",
+            this_ty: CelType::List(Box::new(CelType::UInt)),
+            extras: vec![],
+            expect_ret: "bool",
+        },
+        CelCheck {
+            name: "double_list_filter",
+            expr: "this.filter(x, x > 0.0).size() >= 0",
+            this_ty: CelType::List(Box::new(CelType::Double)),
+            extras: vec![],
+            expect_ret: "bool",
+        },
+        CelCheck {
+            name: "int_list_map_filter",
+            expr: "this.map(x, x > 0, x * 2).all(x, x > 0)",
+            this_ty: CelType::List(Box::new(CelType::Int)),
+            extras: vec![],
+            expect_ret: "bool",
+        },
+        CelCheck {
+            name: "bool_list_map_filter",
+            expr: "this.map(b, b, 1).size() <= 1",
+            this_ty: CelType::List(Box::new(CelType::Bool)),
+            extras: vec![],
+            expect_ret: "bool",
+        },
         // --- two-variable comprehensions
         CelCheck {
             name: "two_var_map_all",

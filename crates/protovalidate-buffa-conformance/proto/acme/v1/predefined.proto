@@ -155,3 +155,33 @@ message PredefinedPaths {
   repeated string items = 3 [(buf.validate.field).repeated.items.string.(language_tag) = true];
   string global = 4 [(buf.validate.field).string.(global_language_tag) = true];
 }
+
+message FilteredScalars {
+  option (buf.validate.message).cel = {
+    id: "filter.bool_list"
+    expression: "[this.primary, this.secondary, this.tertiary].filter(b, b).size() <= 1"
+  };
+  option (buf.validate.message).cel = {
+    id: "filter.int_list"
+    expression: "this.amounts.filter(x, x < 0).size() == 0"
+  };
+  option (buf.validate.message).cel = {
+    id: "filter.uint_list"
+    expression: "this.counts.filter(x, x > 5u).size() <= 1"
+  };
+  option (buf.validate.message).cel = {
+    id: "filter.double_list"
+    expression: "this.ratios.filter(x, x > 1.0).size() == 0"
+  };
+  option (buf.validate.message).cel = {
+    id: "filter.map_filter"
+    expression: "this.amounts.map(x, x > 0, x * 2).all(x, x <= 10)"
+  };
+
+  bool primary = 1;
+  bool secondary = 2;
+  bool tertiary = 3;
+  repeated int64 amounts = 4;
+  repeated uint32 counts = 5;
+  repeated double ratios = 6;
+}

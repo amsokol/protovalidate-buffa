@@ -21,8 +21,8 @@ mod generated {
 
 use generated::{
     acme::v1::{
-        IgnoredLocale, IgnoredUnsupportedRule, PredefinedPaths, PresenceRules, RequiredValue,
-        ZeroValueRules, zero_value_rules::State,
+        FilteredScalars, IgnoredLocale, IgnoredUnsupportedRule, PredefinedPaths, PresenceRules,
+        RequiredValue, ZeroValueRules, zero_value_rules::State,
     },
     validation::string_presence::{
         __buffa::oneof::oneof_strings::Choice, OneofStrings, OptionalStrings,
@@ -292,4 +292,35 @@ fn predefined_rule_paths_preserve_package_and_enclosing_messages() -> Result<(),
         );
     }
     Ok(())
+}
+
+#[test]
+fn filter_over_scalar_lists_validates() -> Result<(), buffa::DecodeError> {
+    assert_owned_and_view(&FilteredScalars::default(), &[])?;
+    let valid = FilteredScalars {
+        primary: true,
+        amounts: vec![0, 1, 5],
+        counts: vec![1, 6],
+        ratios: vec![0.5, 1.0],
+        ..Default::default()
+    };
+    assert_owned_and_view(&valid, &[])?;
+    let invalid = FilteredScalars {
+        primary: true,
+        tertiary: true,
+        amounts: vec![-1, 6],
+        counts: vec![6, 7],
+        ratios: vec![1.5],
+        ..Default::default()
+    };
+    assert_owned_and_view(
+        &invalid,
+        &[
+            "filter.bool_list",
+            "filter.int_list",
+            "filter.uint_list",
+            "filter.double_list",
+            "filter.map_filter",
+        ],
+    )
 }
