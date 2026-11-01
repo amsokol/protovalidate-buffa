@@ -57,152 +57,39 @@ pub(crate) fn emit(
     };
 
     match &field.field_type {
-        FieldKind::String => {
-            if let Some(s) = &field.standard.string {
-                blocks.extend(emit_string(&accessor, name_lit, field.field_number, s));
-            }
-        }
-        FieldKind::Bytes => {
-            if let Some(b) = &field.standard.bytes {
-                blocks.extend(emit_bytes(&accessor, name_lit, field.field_number, b));
-            }
-        }
-        FieldKind::Int32 => {
-            if let Some(n) = &field.standard.int32 {
-                blocks.extend(emit_int32(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_INT32,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Sint32 => {
-            if let Some(n) = &field.standard.int32 {
-                blocks.extend(emit_int32(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_SINT32,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Sfixed32 => {
-            if let Some(n) = &field.standard.int32 {
-                blocks.extend(emit_int32(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_SFIXED32,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Int64 => {
-            if let Some(n) = &field.standard.int64 {
-                blocks.extend(emit_int64(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_INT64,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Sint64 => {
-            if let Some(n) = &field.standard.int64 {
-                blocks.extend(emit_int64(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_SINT64,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Sfixed64 => {
-            if let Some(n) = &field.standard.int64 {
-                blocks.extend(emit_int64(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_SFIXED64,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Uint32 => {
-            if let Some(n) = &field.standard.uint32 {
-                blocks.extend(emit_uint32(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_UINT32,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Fixed32 => {
-            if let Some(n) = &field.standard.uint32 {
-                blocks.extend(emit_uint32(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_FIXED32,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Uint64 => {
-            if let Some(n) = &field.standard.uint64 {
-                blocks.extend(emit_uint64(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_UINT64,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Fixed64 => {
-            if let Some(n) = &field.standard.uint64 {
-                blocks.extend(emit_uint64(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    NUM_FIXED64,
-                    n,
-                ));
-            }
-        }
-        FieldKind::Float => {
-            if let Some(f) = &field.standard.float {
-                blocks.extend(emit_float(&accessor, name_lit, field.field_number, f));
-            }
-        }
-        FieldKind::Double => {
-            if let Some(d) = &field.standard.double {
-                blocks.extend(emit_double(&accessor, name_lit, field.field_number, d));
-            }
-        }
-        FieldKind::Enum { full_name } => {
-            if let Some(e) = &field.standard.enum_rules {
-                blocks.extend(emit_enum(
-                    &accessor,
-                    name_lit,
-                    field.field_number,
-                    e,
-                    full_name,
-                )?);
-            }
+        FieldKind::String
+        | FieldKind::Bytes
+        | FieldKind::Int32
+        | FieldKind::Sint32
+        | FieldKind::Sfixed32
+        | FieldKind::Int64
+        | FieldKind::Sint64
+        | FieldKind::Sfixed64
+        | FieldKind::Uint32
+        | FieldKind::Fixed32
+        | FieldKind::Uint64
+        | FieldKind::Fixed64
+        | FieldKind::Float
+        | FieldKind::Double
+        | FieldKind::Bool
+        | FieldKind::Enum { .. } => {
+            let site = RuleSite::field(
+                name_lit,
+                field.field_number,
+                kind_to_field_type(&field.field_type),
+            );
+            blocks.extend(emit_scalar_rules(
+                &quote! { self.#accessor },
+                &field.field_type,
+                &field.standard,
+                &site,
+            )?);
         }
         FieldKind::Optional(inner) => {
             // EXPLICIT-presence scalar: buffa generates `Option<T>`.
             // Emit all rules inside a guard that binds `v` without moving out
             // of `self`. Copy types bind by value; String/Bytes bind as slices.
-            let inner_blocks = emit_optional_inner(&accessor, name_lit, inner, field)?;
+            let inner_blocks = emit_optional_inner(name_lit, inner, field)?;
             if !inner_blocks.is_empty() {
                 match inner.as_ref() {
                     FieldKind::String => blocks.push(quote! {
@@ -479,17 +366,11 @@ pub(crate) fn emit(
             }
             let _ = full_name;
         }
-        FieldKind::Bool => {
-            if let Some(b) = &field.standard.bool_rules {
-                let value = quote! { self.#accessor };
-                blocks.extend(emit_bool(&value, name_lit, field.field_number, b));
-            }
-        }
         FieldKind::Wrapper(inner) => {
             // Unwrap MessageField<T> → `w.value` then apply inner scalar rules.
             // The outer field in the rule path is TYPE_MESSAGE (the wrapper),
             // not the inner scalar — so use a Message-typed field path.
-            let inner_blocks = emit_wrapper_inner(name_lit, field.field_number, inner, field);
+            let inner_blocks = emit_wrapper_inner(name_lit, field.field_number, inner, field)?;
             if !inner_blocks.is_empty() {
                 let binding = match inner.as_ref() {
                     FieldKind::String => quote! {
@@ -570,477 +451,25 @@ pub(super) fn nonzero_guard(kind: &FieldKind, accessor: &syn::Ident) -> Option<T
 
 // ─── optional (EXPLICIT presence) ────────────────────────────────────────────
 
-/// Emit rule checks for an EXPLICIT-presence scalar field whose Rust type is
-/// `Option<T>`. The generated code is placed inside an `if let Some(v) = ...`
-/// block so all inner snippets use `v` (the unwrapped value) instead of
-/// `self.<field>`.
+/// Rules for an explicit-presence scalar, applied to the `v` the caller binds
+/// inside `if let Some(v)`.
 fn emit_optional_inner(
-    accessor: &syn::Ident,
     name_lit: &str,
     inner: &FieldKind,
     field: &FieldValidator,
 ) -> Result<Vec<TokenStream>> {
-    // For numeric kinds, emit metadata-bearing checks inline so the
-    // conformance diff includes field_number + field_type.
-    const fn num_fam_for(kind: &FieldKind) -> Option<NumFamily> {
-        match kind {
-            FieldKind::Int32 => Some(NUM_INT32),
-            FieldKind::Sint32 => Some(NUM_SINT32),
-            FieldKind::Sfixed32 => Some(NUM_SFIXED32),
-            FieldKind::Int64 => Some(NUM_INT64),
-            FieldKind::Sint64 => Some(NUM_SINT64),
-            FieldKind::Sfixed64 => Some(NUM_SFIXED64),
-            FieldKind::Uint32 => Some(NUM_UINT32),
-            FieldKind::Fixed32 => Some(NUM_FIXED32),
-            FieldKind::Uint64 => Some(NUM_UINT64),
-            FieldKind::Fixed64 => Some(NUM_FIXED64),
-            FieldKind::Float => Some(FLOAT_FAM),
-            FieldKind::Double => Some(DOUBLE_FAM),
-            _ => None,
-        }
+    let site = RuleSite::field(name_lit, field.field_number, kind_to_field_type(inner));
+    let checks = emit_scalar_rules(&quote! { v }, inner, &field.standard, &site)?;
+    if matches!(inner, FieldKind::Enum { .. }) && !checks.is_empty() {
+        return Ok(vec![quote! {
+            // Closed enums use the trait method; open enums have
+            // an inherent `EnumValue::to_i32` method.
+            #[allow(unused_imports, reason = "only closed enums need the trait")]
+            use ::buffa::Enumeration as _;
+            #( #checks )*
+        }]);
     }
-    // Use `v` as the ident for the unwrapped value inside the if-let block.
-    let v = format_ident!("v");
-    let fnum = field.field_number;
-    let mut out: Vec<TokenStream> = Vec::new();
-
-    if let Some(fam) = num_fam_for(inner) {
-        let field_path_expr = field_path_scalar(name_lit, fnum, fam.scalar_ty);
-        // Helper to emit a single comparison with full metadata.
-        let emit_cmp = |out: &mut Vec<TokenStream>,
-                        inner_name: &str,
-                        inner_num: i32,
-                        rule_id: String,
-                        cond: TokenStream| {
-            let field = field_path_expr.clone();
-            let rule = rule_path_scalar(
-                fam.family,
-                fam.outer_number,
-                inner_name,
-                inner_num,
-                fam.scalar_ty,
-            );
-            out.push(quote! {
-                if #cond {
-                    violations.push(::protovalidate_buffa::Violation {
-                        field: #field, rule: #rule,
-                        rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                        message: ::std::borrow::Cow::Borrowed(""),
-                        for_key: false,
-                    });
-                }
-            });
-        };
-        let emit_finite = |condition: TokenStream| {
-            let field = field_path_expr.clone();
-            let rule =
-                rule_path_scalar(fam.family, fam.outer_number, "finite", INNER_FINITE, "Bool");
-            let rule_id = format!("{}.finite", fam.family);
-            quote! {
-                if #condition {
-                    violations.push(::protovalidate_buffa::Violation {
-                        field: #field, rule: #rule,
-                        rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                        message: ::std::borrow::Cow::Borrowed("value must be finite"),
-                        for_key: false,
-                    });
-                }
-            }
-        };
-        let std = &field.standard;
-        match inner {
-            FieldKind::Int32 | FieldKind::Sint32 | FieldKind::Sfixed32 => {
-                if let Some(n) = &std.int32 {
-                    if let Some(c) = n.r#const {
-                        emit_cmp(
-                            &mut out,
-                            "const",
-                            INNER_CONST,
-                            format!("{}.const", fam.family),
-                            quote! { #v != #c },
-                        );
-                    }
-                    if let Some(lo) = n.gt {
-                        emit_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { #v <= #lo },
-                        );
-                    }
-                    if let Some(lo) = n.gte {
-                        emit_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { #v < #lo },
-                        );
-                    }
-                    if let Some(hi) = n.lt {
-                        emit_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { #v >= #hi },
-                        );
-                    }
-                    if let Some(hi) = n.lte {
-                        emit_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { #v > #hi },
-                        );
-                    }
-                }
-            }
-            FieldKind::Int64 | FieldKind::Sint64 | FieldKind::Sfixed64 => {
-                if let Some(n) = &std.int64 {
-                    if let Some(c) = n.r#const {
-                        emit_cmp(
-                            &mut out,
-                            "const",
-                            INNER_CONST,
-                            format!("{}.const", fam.family),
-                            quote! { #v != #c },
-                        );
-                    }
-                    if let Some(lo) = n.gt {
-                        emit_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { #v <= #lo },
-                        );
-                    }
-                    if let Some(lo) = n.gte {
-                        emit_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { #v < #lo },
-                        );
-                    }
-                    if let Some(hi) = n.lt {
-                        emit_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { #v >= #hi },
-                        );
-                    }
-                    if let Some(hi) = n.lte {
-                        emit_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { #v > #hi },
-                        );
-                    }
-                }
-            }
-            FieldKind::Uint32 | FieldKind::Fixed32 => {
-                if let Some(n) = &std.uint32 {
-                    if let Some(c) = n.r#const {
-                        emit_cmp(
-                            &mut out,
-                            "const",
-                            INNER_CONST,
-                            format!("{}.const", fam.family),
-                            quote! { #v != #c },
-                        );
-                    }
-                    if let Some(lo) = n.gt {
-                        emit_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { #v <= #lo },
-                        );
-                    }
-                    if let Some(lo) = n.gte {
-                        emit_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { #v < #lo },
-                        );
-                    }
-                    if let Some(hi) = n.lt {
-                        emit_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { #v >= #hi },
-                        );
-                    }
-                    if let Some(hi) = n.lte {
-                        emit_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { #v > #hi },
-                        );
-                    }
-                }
-            }
-            FieldKind::Uint64 | FieldKind::Fixed64 => {
-                if let Some(n) = &std.uint64 {
-                    if let Some(c) = n.r#const {
-                        emit_cmp(
-                            &mut out,
-                            "const",
-                            INNER_CONST,
-                            format!("{}.const", fam.family),
-                            quote! { #v != #c },
-                        );
-                    }
-                    if let Some(lo) = n.gt {
-                        emit_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { #v <= #lo },
-                        );
-                    }
-                    if let Some(lo) = n.gte {
-                        emit_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { #v < #lo },
-                        );
-                    }
-                    if let Some(hi) = n.lt {
-                        emit_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { #v >= #hi },
-                        );
-                    }
-                    if let Some(hi) = n.lte {
-                        emit_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { #v > #hi },
-                        );
-                    }
-                }
-            }
-            FieldKind::Float => {
-                if let Some(f) = &std.float {
-                    if let Some(lo) = f.gt {
-                        emit_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { !(#v > #lo) },
-                        );
-                    }
-                    if let Some(lo) = f.gte {
-                        emit_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { !(#v >= #lo) },
-                        );
-                    }
-                    if let Some(hi) = f.lt {
-                        emit_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { !(#v < #hi) },
-                        );
-                    }
-                    if let Some(hi) = f.lte {
-                        emit_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { !(#v <= #hi) },
-                        );
-                    }
-                    if f.finite {
-                        out.push(emit_finite(quote! {
-                            !::protovalidate_buffa::rules::float::is_finite_f32(#v)
-                        }));
-                    }
-                }
-            }
-            FieldKind::Double => {
-                if let Some(d) = &std.double {
-                    if let Some(lo) = d.gt {
-                        emit_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { !(#v > #lo) },
-                        );
-                    }
-                    if let Some(lo) = d.gte {
-                        emit_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { !(#v >= #lo) },
-                        );
-                    }
-                    if let Some(hi) = d.lt {
-                        emit_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { !(#v < #hi) },
-                        );
-                    }
-                    if let Some(hi) = d.lte {
-                        emit_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { !(#v <= #hi) },
-                        );
-                    }
-                    if d.finite {
-                        out.push(emit_finite(quote! {
-                            !::protovalidate_buffa::rules::float::is_finite_f64(#v)
-                        }));
-                    }
-                }
-            }
-            _ => {}
-        }
-        let _ = accessor;
-        return Ok(out);
-    }
-
-    match inner {
-        FieldKind::Float => {
-            if let Some(f) = &field.standard.float {
-                out.extend(emit_float_on(&v, name_lit, f));
-            }
-        }
-        FieldKind::Double => {
-            if let Some(d) = &field.standard.double {
-                out.extend(emit_double_on(&v, name_lit, d));
-            }
-        }
-        FieldKind::Int32 | FieldKind::Sint32 | FieldKind::Sfixed32 => {
-            if let Some(n) = &field.standard.int32 {
-                out.extend(emit_int32_on(&v, name_lit, n));
-            }
-        }
-        FieldKind::Int64 | FieldKind::Sint64 | FieldKind::Sfixed64 => {
-            if let Some(n) = &field.standard.int64 {
-                out.extend(emit_int64_on(&v, name_lit, n));
-            }
-        }
-        FieldKind::Uint32 | FieldKind::Fixed32 => {
-            if let Some(n) = &field.standard.uint32 {
-                out.extend(emit_uint32_on(&v, name_lit, n));
-            }
-        }
-        FieldKind::Uint64 | FieldKind::Fixed64 => {
-            if let Some(n) = &field.standard.uint64 {
-                out.extend(emit_uint64_on(&v, name_lit, n));
-            }
-        }
-        FieldKind::String => {
-            if let Some(s) = &field.standard.string {
-                out.extend(emit_string_checks_on(&v, name_lit, field.field_number, s));
-            }
-        }
-        FieldKind::Bytes => {
-            if let Some(b) = &field.standard.bytes {
-                out.extend(emit_bytes_checks_on(&v, name_lit, field.field_number, b));
-            }
-        }
-        FieldKind::Bool => {
-            if let Some(b) = &field.standard.bool_rules {
-                out.extend(emit_bool_checks_on(&v, name_lit, field.field_number, b));
-            }
-        }
-        FieldKind::Enum { full_name } => {
-            if let Some(e) = &field.standard.enum_rules {
-                let checks = emit_enum_checks_on(&v, name_lit, field.field_number, e, full_name)?;
-                if !checks.is_empty() {
-                    out.push(quote! {
-                        // Closed enums use the trait method; open enums have
-                        // an inherent `EnumValue::to_i32` method.
-                        #[allow(unused_imports, reason = "only closed enums need the trait")]
-                        use ::buffa::Enumeration as _;
-                        #( #checks )*
-                    });
-                }
-            }
-        }
-        FieldKind::Message { .. }
-        | FieldKind::Repeated(_)
-        | FieldKind::Map { .. }
-        | FieldKind::Optional(_)
-        | FieldKind::Wrapper(_) => {}
-    }
-
-    let _ = accessor; // name_lit already embedded in inner
-    Ok(out)
-}
-
-pub(crate) fn emit_bytes_checks_on(
-    val: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    b: &BytesStandard,
-) -> Vec<TokenStream> {
-    let value = quote! { #val };
-    emit_bytes_value(&value, name_lit, field_number, b)
-}
-
-pub(crate) fn emit_bool_checks_on(
-    val: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    b: &BoolStandard,
-) -> Vec<TokenStream> {
-    let value = quote! { #val };
-    emit_bool(&value, name_lit, field_number, b)
-}
-
-pub(crate) fn emit_enum_checks_on(
-    val: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    e: &EnumStandard,
-    full_name: &str,
-) -> Result<Vec<TokenStream>> {
-    let value = quote! { #val };
-    emit_enum_value(&value, name_lit, field_number, e, full_name)
+    Ok(checks)
 }
 
 // Variants of numeric/float emitters that take an explicit `value_ident`
@@ -1423,45 +852,18 @@ fn rule_path_scalar_single(name: &str, number: i32, ty: &str) -> TokenStream {
 ///   prefix=7, suffix=8, contains=9, in=10, not_in=11, len=19, len_bytes=20,
 ///   not_contains=23.
 const STR_OUTER: i32 = 14;
-fn str_field_path(name: &str, number: i32) -> TokenStream {
-    field_path_scalar(name, number, "String")
-}
-fn str_rule_path(inner: &str, inner_num: i32) -> TokenStream {
-    rule_path_scalar("string", STR_OUTER, inner, inner_num, "String")
-}
-fn str_rule_path_ty(inner: &str, inner_num: i32, ty: &str) -> TokenStream {
-    rule_path_scalar("string", STR_OUTER, inner, inner_num, ty)
-}
-
-fn emit_string(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    s: &StringStandard,
-) -> Vec<TokenStream> {
-    emit_string_value(&quote! { self.#accessor }, name_lit, field_number, s)
-}
 
 // https://github.com/mathematic-inc/protovalidate-buffa/discussions/83
 // All presence forms share the same checks, borrowing their value as &str.
-fn emit_string_value(
-    value: &TokenStream,
-    name_lit: &str,
-    field_number: i32,
-    s: &StringStandard,
-) -> Vec<TokenStream> {
-    // well_known string format flags — each is a `Bool` rule on StringRules.
-    // The oneof field numbers come from validate.proto.
-    fn wk_rule(inner: &str, inner_num: i32) -> TokenStream {
-        rule_path_scalar("string", 14, inner, inner_num, "Bool")
-    }
+fn emit_string_value(value: &TokenStream, site: &RuleSite, s: &StringStandard) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let value_str = quote! { ::core::convert::AsRef::<str>::as_ref(&(#value)) };
     let mut out: Vec<TokenStream> = Vec::new();
 
     if let Some(n) = s.min_len {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path_ty("min_len", 2, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "min_len", 2, "Uint64");
         out.push(quote! {
             if (#value_str).chars().count() < #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1470,7 +872,7 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value length must be at least {} characters", #n_usize
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -1478,8 +880,8 @@ fn emit_string_value(
 
     if let Some(n) = s.max_len {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path_ty("max_len", 3, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "max_len", 3, "Uint64");
         out.push(quote! {
             if (#value_str).chars().count() > #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1488,7 +890,7 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value length must be at most {} characters", #n_usize
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -1496,14 +898,9 @@ fn emit_string_value(
 
     if let Some(pat) = &s.pattern {
         let pat_str = pat.as_str();
-        let cache_ident = format_ident!(
-            "RE_{}",
-            name_lit
-                .to_uppercase()
-                .replace(|c: char| !c.is_alphanumeric(), "_")
-        );
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path("pattern", 6);
+        let cache_ident = format_ident!("RE_PATTERN");
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "pattern", 6, "String");
         out.push(quote! {
             {
                 static #cache_ident: ::std::sync::OnceLock<::protovalidate_buffa::regex::Regex> =
@@ -1519,7 +916,7 @@ fn emit_string_value(
                         message: ::std::borrow::Cow::Owned(::std::format!(
                             "value must match pattern /{}/", #pat_str
                         )),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -1534,8 +931,8 @@ fn emit_string_value(
                    fn_path: TokenStream,
                    msg: &str| {
         if flag == Some(true) {
-            let field = str_field_path(name_lit, field_number);
-            let rule = wk_rule(inner_name, inner_num);
+            let field = site.field_path();
+            let rule = site.rule("string", STR_OUTER, inner_name, inner_num, "Bool");
             let rid = rule_id.to_string();
             let m = msg.to_string();
             out.push(quote! {
@@ -1544,7 +941,7 @@ fn emit_string_value(
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rid),
                         message: ::std::borrow::Cow::Borrowed(#m),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             });
@@ -1561,10 +958,10 @@ fn emit_string_value(
         if flag != Some(true) {
             return;
         }
-        let field = str_field_path(name_lit, field_number);
-        let field2 = str_field_path(name_lit, field_number);
-        let rule = wk_rule(inner_name, inner_num);
-        let rule2 = wk_rule(inner_name, inner_num);
+        let field = site.field_path();
+        let field2 = site.field_path();
+        let rule = site.rule("string", STR_OUTER, inner_name, inner_num, "Bool");
+        let rule2 = site.rule("string", STR_OUTER, inner_name, inner_num, "Bool");
         let id_empty = format!("{base_id}_empty");
         let id_base = base_id.to_string();
         out.push(quote! {
@@ -1573,14 +970,14 @@ fn emit_string_value(
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#id_empty),
                     message: ::std::borrow::Cow::Borrowed(""),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             } else if !#fn_path(#value_str) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field2, rule: #rule2,
                     rule_id: ::std::borrow::Cow::Borrowed(#id_base),
                     message: ::std::borrow::Cow::Borrowed(""),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -1748,10 +1145,10 @@ fn emit_string_value(
     );
     if let Some(wkr) = s.well_known_regex {
         let strict = s.strict_regex.unwrap_or(true);
-        let field_a = str_field_path(name_lit, field_number);
-        let field_b = str_field_path(name_lit, field_number);
-        let rule_a = str_rule_path_ty("well_known_regex", 24, "Enum");
-        let rule_b = str_rule_path_ty("well_known_regex", 24, "Enum");
+        let field_a = site.field_path();
+        let field_b = site.field_path();
+        let rule_a = site.rule("string", STR_OUTER, "well_known_regex", 24, "Enum");
+        let rule_b = site.rule("string", STR_OUTER, "well_known_regex", 24, "Enum");
         // Only header_name has a distinct empty-rule_id (empty is invalid).
         // header_value allows empty strings.
         let (fn_path, rule_id, empty_rule_id): (TokenStream, &str, Option<&str>) = match wkr {
@@ -1776,14 +1173,14 @@ fn emit_string_value(
                         field: #field_a, rule: #rule_a,
                         rule_id: ::std::borrow::Cow::Borrowed(#rid_empty),
                         message: ::std::borrow::Cow::Borrowed(""),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 } else if !(#fn_path)(#value_str) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field_b, rule: #rule_b,
                         rule_id: ::std::borrow::Cow::Borrowed(#rid),
                         message: ::std::borrow::Cow::Borrowed(""),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             });
@@ -1798,7 +1195,7 @@ fn emit_string_value(
                         field: #field_b, rule: #rule_b,
                         rule_id: ::std::borrow::Cow::Borrowed(#rid),
                         message: ::std::borrow::Cow::Borrowed(""),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             });
@@ -1807,8 +1204,8 @@ fn emit_string_value(
 
     if !s.in_set.is_empty() {
         let set = &s.in_set;
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path("in", 10);
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "in", 10, "String");
         out.push(quote! {
             {
                 const ALLOWED: &[&str] = &[ #( #set ),* ];
@@ -1819,7 +1216,7 @@ fn emit_string_value(
                         message: ::std::borrow::Cow::Owned(::std::format!(
                             "value must be one of [{}]", ALLOWED.join(", ")
                         )),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -1828,8 +1225,8 @@ fn emit_string_value(
 
     if !s.not_in_set.is_empty() {
         let set = &s.not_in_set;
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path("not_in", 11);
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "not_in", 11, "String");
         out.push(quote! {
             {
                 const DISALLOWED: &[&str] = &[ #( #set ),* ];
@@ -1840,7 +1237,7 @@ fn emit_string_value(
                         message: ::std::borrow::Cow::Owned(::std::format!(
                             "value must not be one of [{}]", DISALLOWED.join(", ")
                         )),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -1848,8 +1245,8 @@ fn emit_string_value(
     }
 
     if let Some(prefix) = &s.prefix {
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path("prefix", 7);
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "prefix", 7, "String");
         out.push(quote! {
             if !(#value_str).starts_with(#prefix) {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1858,15 +1255,15 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must have prefix {:?}", #prefix
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
 
     if let Some(suffix) = &s.suffix {
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path("suffix", 8);
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "suffix", 8, "String");
         out.push(quote! {
             if !(#value_str).ends_with(#suffix) {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1875,15 +1272,15 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must have suffix {:?}", #suffix
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
 
     if let Some(contains) = &s.contains {
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path("contains", 9);
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "contains", 9, "String");
         out.push(quote! {
             if !(#value_str).contains(#contains) {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1892,15 +1289,15 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must contain {:?}", #contains
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
 
     if let Some(not_contains) = &s.not_contains {
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path("not_contains", 23);
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "not_contains", 23, "String");
         out.push(quote! {
             if (#value_str).contains(#not_contains) {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1909,7 +1306,7 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must not contain {:?}", #not_contains
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -1917,8 +1314,8 @@ fn emit_string_value(
 
     if let Some(n) = s.len {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path_ty("len", 19, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "len", 19, "Uint64");
         out.push(quote! {
             if (#value_str).chars().count() != #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1927,7 +1324,7 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value length must be {} characters", #n_usize
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -1935,8 +1332,8 @@ fn emit_string_value(
 
     if let Some(n) = s.min_bytes {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path_ty("min_bytes", 4, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "min_bytes", 4, "Uint64");
         out.push(quote! {
             if (#value_str).len() < #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1945,7 +1342,7 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must be at least {} bytes", #n_usize
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -1953,8 +1350,8 @@ fn emit_string_value(
 
     if let Some(n) = s.max_bytes {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path_ty("max_bytes", 5, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "max_bytes", 5, "Uint64");
         out.push(quote! {
             if (#value_str).len() > #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1963,7 +1360,7 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must be at most {} bytes", #n_usize
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -1971,8 +1368,8 @@ fn emit_string_value(
 
     if let Some(n) = s.len_bytes {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path_ty("len_bytes", 20, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "len_bytes", 20, "Uint64");
         out.push(quote! {
             if (#value_str).len() != #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1981,15 +1378,15 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must be exactly {} bytes", #n_usize
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
 
     if let Some(r#const) = &s.r#const {
-        let field = str_field_path(name_lit, field_number);
-        let rule = str_rule_path("const", 1);
+        let field = site.field_path();
+        let rule = site.rule("string", STR_OUTER, "const", 1, "String");
         out.push(quote! {
             if (#value_str) != #r#const {
                 violations.push(::protovalidate_buffa::Violation {
@@ -1998,7 +1395,7 @@ fn emit_string_value(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must equal {:?}", #r#const
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -2012,84 +1409,60 @@ fn emit_string_value(
 /// BytesRules inner numbers: const=1, len=13, min_len=2, max_len=3, pattern=4,
 /// prefix=5, suffix=6, contains=7, in=8, not_in=9.
 const BYTES_OUTER: i32 = 15;
-fn bytes_field_path(name: &str, number: i32) -> TokenStream {
-    field_path_scalar(name, number, "Bytes")
-}
-fn bytes_rule_path(inner: &str, inner_num: i32) -> TokenStream {
-    rule_path_scalar("bytes", BYTES_OUTER, inner, inner_num, "Bytes")
-}
-fn bytes_rule_path_ty(inner: &str, inner_num: i32, ty: &str) -> TokenStream {
-    rule_path_scalar("bytes", BYTES_OUTER, inner, inner_num, ty)
-}
 
-fn emit_bytes(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    b: &BytesStandard,
-) -> Vec<TokenStream> {
-    let value = quote! { self.#accessor };
-    emit_bytes_value(&value, name_lit, field_number, b)
-}
-
-fn emit_bytes_value(
-    value: &TokenStream,
-    name_lit: &str,
-    field_number: i32,
-    b: &BytesStandard,
-) -> Vec<TokenStream> {
+fn emit_bytes_value(value: &TokenStream, site: &RuleSite, b: &BytesStandard) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let mut out: Vec<TokenStream> = Vec::new();
-    let fp = || bytes_field_path(name_lit, field_number);
     let value_len = quote! { #value.len() };
     let value_slice = quote! { ::core::convert::AsRef::<[u8]>::as_ref(&(#value)) };
 
     // bytes.ip = 4 or 16 bytes; bytes.ipv4 = 4 bytes; bytes.ipv6 = 16 bytes.
     if b.ip == Some(true) {
-        let field = fp();
-        let rule = bytes_rule_path_ty("ip", 10, "Bool");
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "ip", 10, "Bool");
         out.push(quote! {
             if #value_len != 4 && #value_len != 16 {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed("bytes.ip"),
                     message: ::std::borrow::Cow::Borrowed(""),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
     if b.ipv4 == Some(true) {
-        let field = fp();
-        let rule = bytes_rule_path_ty("ipv4", 11, "Bool");
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "ipv4", 11, "Bool");
         out.push(quote! {
             if #value_len != 4 {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed("bytes.ipv4"),
                     message: ::std::borrow::Cow::Borrowed(""),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
     if b.ipv6 == Some(true) {
-        let field = fp();
-        let rule = bytes_rule_path_ty("ipv6", 12, "Bool");
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "ipv6", 12, "Bool");
         out.push(quote! {
             if #value_len != 16 {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed("bytes.ipv6"),
                     message: ::std::borrow::Cow::Borrowed(""),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
     // bytes.uuid expects raw 16 bytes, not a hex string.
     if b.uuid == Some(true) {
-        let field = fp();
-        let rule = bytes_rule_path_ty("uuid", 15, "Bool");
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "uuid", 15, "Bool");
         out.push(quote! {
             {
                 // Empty is a special-cased _empty rule.
@@ -2098,14 +1471,14 @@ fn emit_bytes_value(
                         field: #field.clone(), rule: #rule.clone(),
                         rule_id: ::std::borrow::Cow::Borrowed("bytes.uuid_empty"),
                         message: ::std::borrow::Cow::Borrowed(""),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 } else if #value_len != 16 {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed("bytes.uuid"),
                         message: ::std::borrow::Cow::Borrowed(""),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2114,8 +1487,8 @@ fn emit_bytes_value(
 
     if let Some(c) = &b.r#const {
         let set: Vec<u8> = c.clone();
-        let field = fp();
-        let rule = bytes_rule_path("const", 1);
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "const", 1, "Bytes");
         out.push(quote! {
             {
                 const EXPECTED: &[u8] = &[ #( #set ),* ];
@@ -2124,7 +1497,7 @@ fn emit_bytes_value(
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed("bytes.const"),
                         message: ::std::borrow::Cow::Borrowed("value does not match expected bytes"),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2133,8 +1506,8 @@ fn emit_bytes_value(
 
     if let Some(n) = b.min_len {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = fp();
-        let rule = bytes_rule_path_ty("min_len", 2, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "min_len", 2, "Uint64");
         out.push(quote! {
             if #value_len < #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -2144,7 +1517,7 @@ fn emit_bytes_value(
                         "value length must be at least {} bytes (got {})",
                         #n_usize, #value_len
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -2152,8 +1525,8 @@ fn emit_bytes_value(
 
     if let Some(n) = b.len {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = fp();
-        let rule = bytes_rule_path_ty("len", 13, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "len", 13, "Uint64");
         out.push(quote! {
             if #value_len != #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -2163,7 +1536,7 @@ fn emit_bytes_value(
                         "value must be exactly {} bytes (got {})",
                         #n_usize, #value_len
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -2171,8 +1544,8 @@ fn emit_bytes_value(
 
     if let Some(n) = b.max_len {
         let n_usize = usize::try_from(n).expect("proto length bound fits in usize");
-        let field = fp();
-        let rule = bytes_rule_path_ty("max_len", 3, "Uint64");
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "max_len", 3, "Uint64");
         out.push(quote! {
             if #value_len > #n_usize {
                 violations.push(::protovalidate_buffa::Violation {
@@ -2182,7 +1555,7 @@ fn emit_bytes_value(
                         "value length must be at most {} bytes (got {})",
                         #n_usize, #value_len
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -2190,9 +1563,9 @@ fn emit_bytes_value(
 
     if let Some(pat) = &b.pattern {
         let pat_str = pat.as_str();
-        let cache_ident = format_ident!("RE_BYTES_{}", name_lit.to_uppercase());
-        let field = fp();
-        let rule = bytes_rule_path_ty("pattern", 4, "String");
+        let cache_ident = format_ident!("RE_BYTES_PATTERN");
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "pattern", 4, "String");
         out.push(quote! {
             {
                 static #cache_ident: ::std::sync::OnceLock<::protovalidate_buffa::regex::Regex> =
@@ -2210,7 +1583,7 @@ fn emit_bytes_value(
                                 message: ::std::borrow::Cow::Owned(::std::format!(
                                     "value must match pattern /{}/", #pat_str
                                 )),
-                                for_key: false,
+                                for_key: #for_key,
                             });
                         }
                     }
@@ -2231,8 +1604,8 @@ fn emit_bytes_value(
 
     if let Some(prefix) = &b.prefix {
         let p: Vec<u8> = prefix.clone();
-        let field = fp();
-        let rule = bytes_rule_path("prefix", 5);
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "prefix", 5, "Bytes");
         out.push(quote! {
             {
                 const PREFIX: &[u8] = &[ #( #p ),* ];
@@ -2241,7 +1614,7 @@ fn emit_bytes_value(
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed("bytes.prefix"),
                         message: ::std::borrow::Cow::Borrowed("value does not have required prefix"),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2250,8 +1623,8 @@ fn emit_bytes_value(
 
     if let Some(suffix) = &b.suffix {
         let p: Vec<u8> = suffix.clone();
-        let field = fp();
-        let rule = bytes_rule_path("suffix", 6);
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "suffix", 6, "Bytes");
         out.push(quote! {
             {
                 const SUFFIX: &[u8] = &[ #( #p ),* ];
@@ -2260,7 +1633,7 @@ fn emit_bytes_value(
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed("bytes.suffix"),
                         message: ::std::borrow::Cow::Borrowed("value does not have required suffix"),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2269,8 +1642,8 @@ fn emit_bytes_value(
 
     if let Some(contains) = &b.contains {
         let p: Vec<u8> = contains.clone();
-        let field = fp();
-        let rule = bytes_rule_path("contains", 7);
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "contains", 7, "Bytes");
         out.push(quote! {
             {
                 const NEEDLE: &[u8] = &[ #( #p ),* ];
@@ -2279,7 +1652,7 @@ fn emit_bytes_value(
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed("bytes.contains"),
                         message: ::std::borrow::Cow::Borrowed("value does not contain required bytes"),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2296,8 +1669,8 @@ fn emit_bytes_value(
                 quote! { &[ #( #bs ),* ][..] }
             })
             .collect();
-        let field = fp();
-        let rule = bytes_rule_path("in", 8);
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "in", 8, "Bytes");
         out.push(quote! {
             {
                 let allowed: &[&[u8]] = &[ #( #bytes_lits ),* ];
@@ -2306,7 +1679,7 @@ fn emit_bytes_value(
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed("bytes.in"),
                         message: ::std::borrow::Cow::Borrowed("value not in allowed set"),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2322,8 +1695,8 @@ fn emit_bytes_value(
                 quote! { &[ #( #bs ),* ][..] }
             })
             .collect();
-        let field = fp();
-        let rule = bytes_rule_path("not_in", 9);
+        let field = site.field_path();
+        let rule = site.rule("bytes", BYTES_OUTER, "not_in", 9, "Bytes");
         out.push(quote! {
             {
                 let disallowed: &[&[u8]] = &[ #( #bytes_lits ),* ];
@@ -2332,7 +1705,7 @@ fn emit_bytes_value(
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed("bytes.not_in"),
                         message: ::std::borrow::Cow::Borrowed("value is in forbidden set"),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2344,54 +1717,43 @@ fn emit_bytes_value(
 
 // ─── int32 ───────────────────────────────────────────────────────────────────
 
-fn emit_int32(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    fam: NumFamily,
-    n: &Int32Standard,
-) -> Vec<TokenStream> {
-    emit_num_i32_like(accessor, name_lit, field_number, fam, n)
-}
-
 fn emit_num_i32_like(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
+    value: &TokenStream,
+    site: &RuleSite,
     fam: NumFamily,
     n: &Int32Standard,
 ) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let mut out: Vec<TokenStream> = Vec::new();
-    let fp = || field_path_scalar(name_lit, field_number, fam.scalar_ty);
 
     if let (Some(lower), Some(upper)) = (n.gt, n.lt) {
         out.push(range_check(
-            &fp(),
+            site,
             fam,
             false,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
     if let (Some(lower), Some(upper)) = (n.gte, n.lte) {
         out.push(range_check(
-            &fp(),
+            site,
             fam,
             true,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
 
     if let Some(c) = n.r#const {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "const",
@@ -2400,40 +1762,40 @@ fn emit_num_i32_like(
         );
         let rule_id = format!("{}.const", fam.family);
         out.push(quote! {
-            if self.#accessor != #c {
+            if (#value) != #c {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field,
                     rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                     message: ::std::borrow::Cow::Owned(::std::format!(
-                        "value must equal {} (got {})", #c, self.#accessor
+                        "value must equal {} (got {})", #c, (#value)
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = n.gt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
         let rule_id = format!("{}.gt", fam.family);
         out.push(quote! {
-            if self.#accessor <= #lower {
+            if (#value) <= #lower {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field,
                     rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                     message: ::std::borrow::Cow::Owned(::std::format!(
-                        "value must be > {} (got {})", #lower, self.#accessor
+                        "value must be > {} (got {})", #lower, (#value)
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = n.gte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "gte",
@@ -2442,40 +1804,40 @@ fn emit_num_i32_like(
         );
         let rule_id = format!("{}.gte", fam.family);
         out.push(quote! {
-            if self.#accessor < #lower {
+            if (#value) < #lower {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field,
                     rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                     message: ::std::borrow::Cow::Owned(::std::format!(
-                        "value must be >= {} (got {})", #lower, self.#accessor
+                        "value must be >= {} (got {})", #lower, (#value)
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = n.lt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
         let rule_id = format!("{}.lt", fam.family);
         out.push(quote! {
-            if self.#accessor >= #upper {
+            if (#value) >= #upper {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field,
                     rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                     message: ::std::borrow::Cow::Owned(::std::format!(
-                        "value must be < {} (got {})", #upper, self.#accessor
+                        "value must be < {} (got {})", #upper, (#value)
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = n.lte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "lte",
@@ -2484,28 +1846,28 @@ fn emit_num_i32_like(
         );
         let rule_id = format!("{}.lte", fam.family);
         out.push(quote! {
-            if self.#accessor > #upper {
+            if (#value) > #upper {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field,
                     rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                     message: ::std::borrow::Cow::Owned(::std::format!(
-                        "value must be <= {} (got {})", #upper, self.#accessor
+                        "value must be <= {} (got {})", #upper, (#value)
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
     }
     if !n.in_set.is_empty() {
         let set = &n.in_set;
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
         let rule_id = format!("{}.in", fam.family);
         out.push(quote! {
             {
                 const ALLOWED: &[i32] = &[ #( #set ),* ];
-                if !ALLOWED.contains(&self.#accessor) {
+                if !ALLOWED.contains(&(#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field,
                         rule: #rule,
@@ -2513,7 +1875,7 @@ fn emit_num_i32_like(
                         message: ::std::borrow::Cow::Owned(::std::format!(
                             "value must be in {:?}", ALLOWED
                         )),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2521,8 +1883,8 @@ fn emit_num_i32_like(
     }
     if !n.not_in.is_empty() {
         let set = &n.not_in;
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "not_in",
@@ -2533,7 +1895,7 @@ fn emit_num_i32_like(
         out.push(quote! {
             {
                 const DISALLOWED: &[i32] = &[ #( #set ),* ];
-                if DISALLOWED.contains(&self.#accessor) {
+                if DISALLOWED.contains(&(#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field,
                         rule: #rule,
@@ -2541,7 +1903,7 @@ fn emit_num_i32_like(
                         message: ::std::borrow::Cow::Owned(::std::format!(
                             "value must not be in {:?}", DISALLOWED
                         )),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2553,43 +1915,42 @@ fn emit_num_i32_like(
 // ─── int64 ───────────────────────────────────────────────────────────────────
 
 fn emit_int64(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
+    value: &TokenStream,
+    site: &RuleSite,
     fam: NumFamily,
     n: &Int64Standard,
 ) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let mut out: Vec<TokenStream> = Vec::new();
-    let fp = || field_path_scalar(name_lit, field_number, fam.scalar_ty);
 
     if let (Some(lower), Some(upper)) = (n.gt, n.lt) {
         out.push(range_check(
-            &fp(),
+            site,
             fam,
             false,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
     if let (Some(lower), Some(upper)) = (n.gte, n.lte) {
         out.push(range_check(
-            &fp(),
+            site,
             fam,
             true,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
 
     if let Some(c) = n.r#const {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "const",
@@ -2598,34 +1959,34 @@ fn emit_int64(
         );
         let rule_id = format!("{}.const", fam.family);
         out.push(quote! {
-            if self.#accessor != #c {
+            if (#value) != #c {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = n.gt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
         let rule_id = format!("{}.gt", fam.family);
         out.push(quote! {
-            if self.#accessor <= #lower {
+            if (#value) <= #lower {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = n.gte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "gte",
@@ -2634,34 +1995,34 @@ fn emit_int64(
         );
         let rule_id = format!("{}.gte", fam.family);
         out.push(quote! {
-            if self.#accessor < #lower {
+            if (#value) < #lower {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = n.lt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
         let rule_id = format!("{}.lt", fam.family);
         out.push(quote! {
-            if self.#accessor >= #upper {
+            if (#value) >= #upper {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = n.lte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "lte",
@@ -2670,30 +2031,30 @@ fn emit_int64(
         );
         let rule_id = format!("{}.lte", fam.family);
         out.push(quote! {
-            if self.#accessor > #upper {
+            if (#value) > #upper {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if !n.in_set.is_empty() {
         let set = &n.in_set;
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
         let rule_id = format!("{}.in", fam.family);
         out.push(quote! {
             {
                 const ALLOWED: &[i64] = &[ #( #set ),* ];
-                if !ALLOWED.contains(&self.#accessor) {
+                if !ALLOWED.contains(&(#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must be in {:?}", ALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2701,8 +2062,8 @@ fn emit_int64(
     }
     if !n.not_in.is_empty() {
         let set = &n.not_in;
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "not_in",
@@ -2713,12 +2074,12 @@ fn emit_int64(
         out.push(quote! {
             {
                 const DISALLOWED: &[i64] = &[ #( #set ),* ];
-                if DISALLOWED.contains(&self.#accessor) {
+                if DISALLOWED.contains(&(#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must not be in {:?}", DISALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2730,43 +2091,42 @@ fn emit_int64(
 // ─── uint32 ──────────────────────────────────────────────────────────────────
 
 fn emit_uint32(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
+    value: &TokenStream,
+    site: &RuleSite,
     fam: NumFamily,
     n: &Uint32Standard,
 ) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let mut out: Vec<TokenStream> = Vec::new();
-    let fp = || field_path_scalar(name_lit, field_number, fam.scalar_ty);
 
     if let (Some(lower), Some(upper)) = (n.gt, n.lt) {
         out.push(range_check(
-            &fp(),
+            site,
             fam,
             false,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
     if let (Some(lower), Some(upper)) = (n.gte, n.lte) {
         out.push(range_check(
-            &fp(),
+            site,
             fam,
             true,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
 
     if let Some(c) = n.r#const {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "const",
@@ -2775,34 +2135,34 @@ fn emit_uint32(
         );
         let rule_id = format!("{}.const", fam.family);
         out.push(quote! {
-            if self.#accessor != #c {
+            if (#value) != #c {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = n.gt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
         let rule_id = format!("{}.gt", fam.family);
         out.push(quote! {
-            if self.#accessor <= #lower {
+            if (#value) <= #lower {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = n.gte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "gte",
@@ -2811,34 +2171,34 @@ fn emit_uint32(
         );
         let rule_id = format!("{}.gte", fam.family);
         out.push(quote! {
-            if self.#accessor < #lower {
+            if (#value) < #lower {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = n.lt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
         let rule_id = format!("{}.lt", fam.family);
         out.push(quote! {
-            if self.#accessor >= #upper {
+            if (#value) >= #upper {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = n.lte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "lte",
@@ -2847,30 +2207,30 @@ fn emit_uint32(
         );
         let rule_id = format!("{}.lte", fam.family);
         out.push(quote! {
-            if self.#accessor > #upper {
+            if (#value) > #upper {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if !n.in_set.is_empty() {
         let set = &n.in_set;
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
         let rule_id = format!("{}.in", fam.family);
         out.push(quote! {
             {
                 const ALLOWED: &[u32] = &[ #( #set ),* ];
-                if !ALLOWED.contains(&self.#accessor) {
+                if !ALLOWED.contains(&(#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must be in {:?}", ALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2878,8 +2238,8 @@ fn emit_uint32(
     }
     if !n.not_in.is_empty() {
         let set = &n.not_in;
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "not_in",
@@ -2890,12 +2250,12 @@ fn emit_uint32(
         out.push(quote! {
             {
                 const DISALLOWED: &[u32] = &[ #( #set ),* ];
-                if DISALLOWED.contains(&self.#accessor) {
+                if DISALLOWED.contains(&(#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must not be in {:?}", DISALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -2907,43 +2267,42 @@ fn emit_uint32(
 // ─── uint64 ──────────────────────────────────────────────────────────────────
 
 fn emit_uint64(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
+    value: &TokenStream,
+    site: &RuleSite,
     fam: NumFamily,
     n: &Uint64Standard,
 ) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let mut out: Vec<TokenStream> = Vec::new();
-    let fp = || field_path_scalar(name_lit, field_number, fam.scalar_ty);
 
     if let (Some(lower), Some(upper)) = (n.gt, n.lt) {
         out.push(range_check(
-            &fp(),
+            site,
             fam,
             false,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
     if let (Some(lower), Some(upper)) = (n.gte, n.lte) {
         out.push(range_check(
-            &fp(),
+            site,
             fam,
             true,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
 
     if let Some(c) = n.r#const {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "const",
@@ -2952,34 +2311,34 @@ fn emit_uint64(
         );
         let rule_id = format!("{}.const", fam.family);
         out.push(quote! {
-            if self.#accessor != #c {
+            if (#value) != #c {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = n.gt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
         let rule_id = format!("{}.gt", fam.family);
         out.push(quote! {
-            if self.#accessor <= #lower {
+            if (#value) <= #lower {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = n.gte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "gte",
@@ -2988,34 +2347,34 @@ fn emit_uint64(
         );
         let rule_id = format!("{}.gte", fam.family);
         out.push(quote! {
-            if self.#accessor < #lower {
+            if (#value) < #lower {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = n.lt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
         let rule_id = format!("{}.lt", fam.family);
         out.push(quote! {
-            if self.#accessor >= #upper {
+            if (#value) >= #upper {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = n.lte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "lte",
@@ -3024,30 +2383,30 @@ fn emit_uint64(
         );
         let rule_id = format!("{}.lte", fam.family);
         out.push(quote! {
-            if self.#accessor > #upper {
+            if (#value) > #upper {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if !n.in_set.is_empty() {
         let set = &n.in_set;
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
         let rule_id = format!("{}.in", fam.family);
         out.push(quote! {
             {
                 const ALLOWED: &[u64] = &[ #( #set ),* ];
-                if !ALLOWED.contains(&self.#accessor) {
+                if !ALLOWED.contains(&(#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must be in {:?}", ALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -3055,8 +2414,8 @@ fn emit_uint64(
     }
     if !n.not_in.is_empty() {
         let set = &n.not_in;
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "not_in",
@@ -3067,12 +2426,12 @@ fn emit_uint64(
         out.push(quote! {
             {
                 const DISALLOWED: &[u64] = &[ #( #set ),* ];
-                if DISALLOWED.contains(&self.#accessor) {
+                if DISALLOWED.contains(&(#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must not be in {:?}", DISALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -3095,44 +2454,39 @@ pub(crate) const DOUBLE_FAM: NumFamily = NumFamily {
 };
 const INNER_FINITE: i32 = 8;
 
-fn emit_float(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    f: &FloatStandard,
-) -> Vec<TokenStream> {
+fn emit_float(value: &TokenStream, site: &RuleSite, f: &FloatStandard) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let fam = FLOAT_FAM;
     let mut out: Vec<TokenStream> = Vec::new();
-    let fp = || field_path_scalar(name_lit, field_number, fam.scalar_ty);
 
     if let (Some(lower), Some(upper)) = (f.gt, f.lt) {
         out.push(range_check_fp(
-            &fp(),
+            site,
             fam,
             false,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
     if let (Some(lower), Some(upper)) = (f.gte, f.lte) {
         out.push(range_check_fp(
-            &fp(),
+            site,
             fam,
             true,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
 
     if let Some(c) = f.r#const {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "const",
@@ -3141,34 +2495,34 @@ fn emit_float(
         );
         let rule_id = format!("{}.const", fam.family);
         out.push(quote! {
-            if self.#accessor != #c {
+            if (#value) != #c {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = f.gt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
         let rule_id = format!("{}.gt", fam.family);
         out.push(quote! {
-            if !(self.#accessor > #lower) {
+            if !((#value) > #lower) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = f.gte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "gte",
@@ -3177,34 +2531,34 @@ fn emit_float(
         );
         let rule_id = format!("{}.gte", fam.family);
         out.push(quote! {
-            if !(self.#accessor >= #lower) {
+            if !((#value) >= #lower) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = f.lt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
         let rule_id = format!("{}.lt", fam.family);
         out.push(quote! {
-            if !(self.#accessor < #upper) {
+            if !((#value) < #upper) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = f.lte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "lte",
@@ -3213,30 +2567,30 @@ fn emit_float(
         );
         let rule_id = format!("{}.lte", fam.family);
         out.push(quote! {
-            if !(self.#accessor <= #upper) {
+            if !((#value) <= #upper) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if !f.in_set.is_empty() {
         let set = &f.in_set;
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
         let rule_id = format!("{}.in", fam.family);
         out.push(quote! {
             {
                 const ALLOWED: &[f32] = &[ #( #set ),* ];
-                if !ALLOWED.iter().any(|c| *c == self.#accessor) {
+                if !ALLOWED.iter().any(|c| *c == (#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must be in {:?}", ALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -3244,8 +2598,8 @@ fn emit_float(
     }
     if !f.not_in.is_empty() {
         let set = &f.not_in;
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "not_in",
@@ -3256,28 +2610,28 @@ fn emit_float(
         out.push(quote! {
             {
                 const DISALLOWED: &[f32] = &[ #( #set ),* ];
-                if DISALLOWED.iter().any(|c| *c == self.#accessor) {
+                if DISALLOWED.iter().any(|c| *c == (#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must not be in {:?}", DISALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
         });
     }
     if f.finite {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "finite", INNER_FINITE, "Bool");
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "finite", INNER_FINITE, "Bool");
         let rule_id = format!("{}.finite", fam.family);
         out.push(quote! {
-            if !::protovalidate_buffa::rules::float::is_finite_f32(self.#accessor) {
+            if !::protovalidate_buffa::rules::float::is_finite_f32((#value)) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                     message: ::std::borrow::Cow::Borrowed("value must be finite"),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -3287,44 +2641,39 @@ fn emit_float(
 
 // ─── double ──────────────────────────────────────────────────────────────────
 
-fn emit_double(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    d: &DoubleStandard,
-) -> Vec<TokenStream> {
+fn emit_double(value: &TokenStream, site: &RuleSite, d: &DoubleStandard) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let fam = DOUBLE_FAM;
     let mut out: Vec<TokenStream> = Vec::new();
-    let fp = || field_path_scalar(name_lit, field_number, fam.scalar_ty);
 
     if let (Some(lower), Some(upper)) = (d.gt, d.lt) {
         out.push(range_check_fp(
-            &fp(),
+            site,
             fam,
             false,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
     if let (Some(lower), Some(upper)) = (d.gte, d.lte) {
         out.push(range_check_fp(
-            &fp(),
+            site,
             fam,
             true,
             &quote! { #lower },
             &quote! { #upper },
-            &quote! { self.#accessor },
+            value,
             upper < lower,
         ));
         return out;
     }
 
     if let Some(c) = d.r#const {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "const",
@@ -3333,34 +2682,34 @@ fn emit_double(
         );
         let rule_id = format!("{}.const", fam.family);
         out.push(quote! {
-            if self.#accessor != #c {
+            if (#value) != #c {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must equal {} (got {})", #c, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = d.gt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "gt", INNER_GT, fam.scalar_ty);
         let rule_id = format!("{}.gt", fam.family);
         out.push(quote! {
-            if !(self.#accessor > #lower) {
+            if !((#value) > #lower) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be > {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(lower) = d.gte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "gte",
@@ -3369,34 +2718,34 @@ fn emit_double(
         );
         let rule_id = format!("{}.gte", fam.family);
         out.push(quote! {
-            if !(self.#accessor >= #lower) {
+            if !((#value) >= #lower) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be >= {} (got {})", #lower, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = d.lt {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "lt", INNER_LT, fam.scalar_ty);
         let rule_id = format!("{}.lt", fam.family);
         out.push(quote! {
-            if !(self.#accessor < #upper) {
+            if !((#value) < #upper) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be < {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if let Some(upper) = d.lte {
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "lte",
@@ -3405,30 +2754,30 @@ fn emit_double(
         );
         let rule_id = format!("{}.lte", fam.family);
         out.push(quote! {
-            if !(self.#accessor <= #upper) {
+            if !((#value) <= #upper) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, self.#accessor)),
-                    for_key: false,
+                    message: ::std::borrow::Cow::Owned(::std::format!("value must be <= {} (got {})", #upper, (#value))),
+                    for_key: #for_key,
                 });
             }
         });
     }
     if !d.in_set.is_empty() {
         let set = &d.in_set;
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "in", INNER_IN, fam.scalar_ty);
         let rule_id = format!("{}.in", fam.family);
         out.push(quote! {
             {
                 const ALLOWED: &[f64] = &[ #( #set ),* ];
-                if !ALLOWED.iter().any(|c| *c == self.#accessor) {
+                if !ALLOWED.iter().any(|c| *c == (#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must be in {:?}", ALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
@@ -3436,8 +2785,8 @@ fn emit_double(
     }
     if !d.not_in.is_empty() {
         let set = &d.not_in;
-        let field = fp();
-        let rule = rule_path_scalar(
+        let field = site.field_path();
+        let rule = site.rule(
             fam.family,
             fam.outer_number,
             "not_in",
@@ -3448,28 +2797,28 @@ fn emit_double(
         out.push(quote! {
             {
                 const DISALLOWED: &[f64] = &[ #( #set ),* ];
-                if DISALLOWED.iter().any(|c| *c == self.#accessor) {
+                if DISALLOWED.iter().any(|c| *c == (#value)) {
                     violations.push(::protovalidate_buffa::Violation {
                         field: #field, rule: #rule,
                         rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                         message: ::std::borrow::Cow::Owned(::std::format!("value must not be in {:?}", DISALLOWED)),
-                        for_key: false,
+                        for_key: #for_key,
                     });
                 }
             }
         });
     }
     if d.finite {
-        let field = fp();
-        let rule = rule_path_scalar(fam.family, fam.outer_number, "finite", INNER_FINITE, "Bool");
+        let field = site.field_path();
+        let rule = site.rule(fam.family, fam.outer_number, "finite", INNER_FINITE, "Bool");
         let rule_id = format!("{}.finite", fam.family);
         out.push(quote! {
-            if !::protovalidate_buffa::rules::float::is_finite_f64(self.#accessor) {
+            if !::protovalidate_buffa::rules::float::is_finite_f64((#value)) {
                 violations.push(::protovalidate_buffa::Violation {
                     field: #field, rule: #rule,
                     rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                     message: ::std::borrow::Cow::Borrowed("value must be finite"),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -3479,21 +2828,9 @@ fn emit_double(
 
 // ─── enum ────────────────────────────────────────────────────────────────────
 
-fn emit_enum(
-    accessor: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    e: &EnumStandard,
-    full_name: &str,
-) -> Result<Vec<TokenStream>> {
-    let value = quote! { self.#accessor };
-    emit_enum_value(&value, name_lit, field_number, e, full_name)
-}
-
 fn emit_enum_value(
     value: &TokenStream,
-    name_lit: &str,
-    field_number: i32,
+    site: &RuleSite,
     e: &EnumStandard,
     full_name: &str,
 ) -> Result<Vec<TokenStream>> {
@@ -3501,8 +2838,8 @@ fn emit_enum_value(
         value,
         e,
         full_name,
-        &field_path_scalar(name_lit, field_number, "Enum"),
-        |inner, inner_num, ty| rule_path_scalar("enum", 16, inner, inner_num, ty),
+        &site.field_path(),
+        |inner, inner_num, ty| site.rule("enum", 16, inner, inner_num, ty),
     )
 }
 
@@ -3706,1323 +3043,16 @@ fn to_snake_case(s: &str) -> String {
     out
 }
 
-/// Build an Ident that's safe to use as a Rust identifier. If the input
-/// collides with a Rust keyword (e.g. `in`, `type`, `self`, `fn`), the
-/// returned Ident is a raw identifier (`r#in`), matching buffa's generated
-/// accessor for fields whose names are keywords.
-/// Convert a FieldKind to the FieldType variant name used in the runtime
-/// enum. Composite kinds (Repeated/Map/Optional/Message) map to the closest
-/// approximation — primarily used for element-type metadata on repeated/map
-/// entries where the inner scalar type is known.
-/// Wrapper-specific: the outer field (in the rule path) is TYPE_MESSAGE
-/// (the wrapper), not the inner scalar.
+/// Rules for a wrapper's inner value, applied to the `v` the caller binds to
+/// `.value`. Violations name the wrapper field, so its type is `Message`.
 pub(crate) fn emit_wrapper_inner(
     name_lit: &str,
     field_number: i32,
     inner: &FieldKind,
     field: &FieldValidator,
-) -> Vec<TokenStream> {
-    let v = format_ident!("v");
-    let fam = match inner {
-        FieldKind::Int32 => Some(NUM_INT32),
-        FieldKind::Int64 => Some(NUM_INT64),
-        FieldKind::Uint32 => Some(NUM_UINT32),
-        FieldKind::Uint64 => Some(NUM_UINT64),
-        FieldKind::Float => Some(FLOAT_FAM),
-        FieldKind::Double => Some(DOUBLE_FAM),
-        FieldKind::Bool => None,
-        FieldKind::String | FieldKind::Bytes => None,
-        _ => None,
-    };
-    let field_path_expr = field_path_scalar(name_lit, field_number, "Message");
-    let mut out: Vec<TokenStream> = Vec::new();
-    if let Some(fam) = fam {
-        let push_cmp = |out: &mut Vec<TokenStream>,
-                        inner_name: &str,
-                        inner_num: i32,
-                        rule_id: String,
-                        cond: TokenStream| {
-            let field = field_path_expr.clone();
-            let rule = rule_path_scalar(
-                fam.family,
-                fam.outer_number,
-                inner_name,
-                inner_num,
-                fam.scalar_ty,
-            );
-            out.push(quote! {
-                if #cond {
-                    violations.push(::protovalidate_buffa::Violation {
-                        field: #field, rule: #rule,
-                        rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                        message: ::std::borrow::Cow::Borrowed(""),
-                        for_key: false,
-                    });
-                }
-            });
-        };
-        let std = &field.standard;
-        match inner {
-            FieldKind::Int32 => {
-                if let Some(n) = &std.int32 {
-                    if let Some(lo) = n.gt {
-                        push_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { #v <= #lo },
-                        );
-                    }
-                    if let Some(lo) = n.gte {
-                        push_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { #v < #lo },
-                        );
-                    }
-                    if let Some(hi) = n.lt {
-                        push_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { #v >= #hi },
-                        );
-                    }
-                    if let Some(hi) = n.lte {
-                        push_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { #v > #hi },
-                        );
-                    }
-                    if let Some(c) = n.r#const {
-                        push_cmp(
-                            &mut out,
-                            "const",
-                            INNER_CONST,
-                            format!("{}.const", fam.family),
-                            quote! { #v != #c },
-                        );
-                    }
-                }
-            }
-            FieldKind::Int64 => {
-                if let Some(n) = &std.int64 {
-                    if let Some(lo) = n.gt {
-                        push_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { #v <= #lo },
-                        );
-                    }
-                    if let Some(lo) = n.gte {
-                        push_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { #v < #lo },
-                        );
-                    }
-                    if let Some(hi) = n.lt {
-                        push_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { #v >= #hi },
-                        );
-                    }
-                    if let Some(hi) = n.lte {
-                        push_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { #v > #hi },
-                        );
-                    }
-                    if let Some(c) = n.r#const {
-                        push_cmp(
-                            &mut out,
-                            "const",
-                            INNER_CONST,
-                            format!("{}.const", fam.family),
-                            quote! { #v != #c },
-                        );
-                    }
-                }
-            }
-            FieldKind::Uint32 => {
-                if let Some(n) = &std.uint32 {
-                    if let Some(lo) = n.gt {
-                        push_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { #v <= #lo },
-                        );
-                    }
-                    if let Some(lo) = n.gte {
-                        push_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { #v < #lo },
-                        );
-                    }
-                    if let Some(hi) = n.lt {
-                        push_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { #v >= #hi },
-                        );
-                    }
-                    if let Some(hi) = n.lte {
-                        push_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { #v > #hi },
-                        );
-                    }
-                    if let Some(c) = n.r#const {
-                        push_cmp(
-                            &mut out,
-                            "const",
-                            INNER_CONST,
-                            format!("{}.const", fam.family),
-                            quote! { #v != #c },
-                        );
-                    }
-                }
-            }
-            FieldKind::Uint64 => {
-                if let Some(n) = &std.uint64 {
-                    if let Some(lo) = n.gt {
-                        push_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { #v <= #lo },
-                        );
-                    }
-                    if let Some(lo) = n.gte {
-                        push_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { #v < #lo },
-                        );
-                    }
-                    if let Some(hi) = n.lt {
-                        push_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { #v >= #hi },
-                        );
-                    }
-                    if let Some(hi) = n.lte {
-                        push_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { #v > #hi },
-                        );
-                    }
-                    if let Some(c) = n.r#const {
-                        push_cmp(
-                            &mut out,
-                            "const",
-                            INNER_CONST,
-                            format!("{}.const", fam.family),
-                            quote! { #v != #c },
-                        );
-                    }
-                }
-            }
-            FieldKind::Float => {
-                if let Some(f) = &std.float {
-                    if let Some(lo) = f.gt {
-                        push_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { !(#v > #lo) },
-                        );
-                    }
-                    if let Some(lo) = f.gte {
-                        push_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { !(#v >= #lo) },
-                        );
-                    }
-                    if let Some(hi) = f.lt {
-                        push_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { !(#v < #hi) },
-                        );
-                    }
-                    if let Some(hi) = f.lte {
-                        push_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { !(#v <= #hi) },
-                        );
-                    }
-                }
-            }
-            FieldKind::Double => {
-                if let Some(d) = &std.double {
-                    if let Some(lo) = d.gt {
-                        push_cmp(
-                            &mut out,
-                            "gt",
-                            INNER_GT,
-                            format!("{}.gt", fam.family),
-                            quote! { !(#v > #lo) },
-                        );
-                    }
-                    if let Some(lo) = d.gte {
-                        push_cmp(
-                            &mut out,
-                            "gte",
-                            INNER_GTE,
-                            format!("{}.gte", fam.family),
-                            quote! { !(#v >= #lo) },
-                        );
-                    }
-                    if let Some(hi) = d.lt {
-                        push_cmp(
-                            &mut out,
-                            "lt",
-                            INNER_LT,
-                            format!("{}.lt", fam.family),
-                            quote! { !(#v < #hi) },
-                        );
-                    }
-                    if let Some(hi) = d.lte {
-                        push_cmp(
-                            &mut out,
-                            "lte",
-                            INNER_LTE,
-                            format!("{}.lte", fam.family),
-                            quote! { !(#v <= #hi) },
-                        );
-                    }
-                }
-            }
-            _ => {}
-        }
-    } else {
-        // String/Bytes/Bool wrappers: emit minimal checks with TYPE_MESSAGE
-        // outer field path + proper inner rule path.
-        let std = &field.standard;
-        let push_v = |out: &mut Vec<TokenStream>,
-                      rule_family: &str,
-                      outer_num: i32,
-                      inner_name: &str,
-                      inner_num: i32,
-                      inner_ty: &str,
-                      rule_id: &str,
-                      cond: TokenStream| {
-            let field_path = field_path_scalar(name_lit, field_number, "Message");
-            let rule = rule_path_scalar(rule_family, outer_num, inner_name, inner_num, inner_ty);
-            let id = rule_id.to_string();
-            out.push(quote! {
-                if #cond {
-                    violations.push(::protovalidate_buffa::Violation {
-                        field: #field_path, rule: #rule,
-                        rule_id: ::std::borrow::Cow::Borrowed(#id),
-                        message: ::std::borrow::Cow::Borrowed(""),
-                        for_key: false,
-                    });
-                }
-            });
-        };
-        match inner {
-            FieldKind::String => {
-                if let Some(s) = &std.string {
-                    if let Some(c) = &s.r#const {
-                        push_v(
-                            &mut out,
-                            "string",
-                            14,
-                            "const",
-                            1,
-                            "String",
-                            "string.const",
-                            quote! { #v != #c },
-                        );
-                    }
-                    if let Some(n) = s.min_len {
-                        let n_usize = usize::try_from(n).expect("len fits in usize");
-                        push_v(
-                            &mut out,
-                            "string",
-                            14,
-                            "min_len",
-                            2,
-                            "Uint64",
-                            "string.min_len",
-                            quote! { #v.chars().count() < #n_usize },
-                        );
-                    }
-                    if let Some(n) = s.max_len {
-                        let n_usize = usize::try_from(n).expect("len fits in usize");
-                        push_v(
-                            &mut out,
-                            "string",
-                            14,
-                            "max_len",
-                            3,
-                            "Uint64",
-                            "string.max_len",
-                            quote! { #v.chars().count() > #n_usize },
-                        );
-                    }
-                    if let Some(pre) = &s.prefix {
-                        push_v(
-                            &mut out,
-                            "string",
-                            14,
-                            "prefix",
-                            7,
-                            "String",
-                            "string.prefix",
-                            quote! { !#v.starts_with(#pre) },
-                        );
-                    }
-                    if let Some(suf) = &s.suffix {
-                        push_v(
-                            &mut out,
-                            "string",
-                            14,
-                            "suffix",
-                            8,
-                            "String",
-                            "string.suffix",
-                            quote! { !#v.ends_with(#suf) },
-                        );
-                    }
-                    if let Some(cn) = &s.contains {
-                        push_v(
-                            &mut out,
-                            "string",
-                            14,
-                            "contains",
-                            9,
-                            "String",
-                            "string.contains",
-                            quote! { !#v.contains(#cn) },
-                        );
-                    }
-                    if s.uuid == Some(true) {
-                        push_v(
-                            &mut out,
-                            "string",
-                            14,
-                            "uuid",
-                            22,
-                            "Bool",
-                            "string.uuid",
-                            quote! { !::protovalidate_buffa::rules::string::is_uuid(#v) },
-                        );
-                    }
-                }
-            }
-            FieldKind::Bytes => {
-                if let Some(b) = &std.bytes {
-                    if let Some(n) = b.min_len {
-                        let n_usize = usize::try_from(n).expect("len fits in usize");
-                        push_v(
-                            &mut out,
-                            "bytes",
-                            15,
-                            "min_len",
-                            2,
-                            "Uint64",
-                            "bytes.min_len",
-                            quote! { #v.len() < #n_usize },
-                        );
-                    }
-                    if let Some(n) = b.max_len {
-                        let n_usize = usize::try_from(n).expect("len fits in usize");
-                        push_v(
-                            &mut out,
-                            "bytes",
-                            15,
-                            "max_len",
-                            3,
-                            "Uint64",
-                            "bytes.max_len",
-                            quote! { #v.len() > #n_usize },
-                        );
-                    }
-                }
-            }
-            FieldKind::Bool => {
-                if let Some(b) = &std.bool_rules
-                    && let Some(c) = b.r#const
-                {
-                    push_v(
-                        &mut out,
-                        "bool",
-                        13,
-                        "const",
-                        1,
-                        "Bool",
-                        "bool.const",
-                        quote! { #v != #c },
-                    );
-                }
-            }
-            _ => {}
-        }
-        return out;
-    }
-    out
-}
-
-/// Emit metadata-bearing numeric checks that operate on an arbitrary value
-/// expression `v` (owned copy for Copy types like i32 etc.). Used by oneof
-/// variant emission.
-pub(crate) fn emit_numeric_checks_on(
-    v: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    kind: &FieldKind,
-    std: &crate::scan::StandardRules,
-) -> Vec<TokenStream> {
-    let fam = match kind {
-        FieldKind::Int32 => NUM_INT32,
-        FieldKind::Sint32 => NUM_SINT32,
-        FieldKind::Sfixed32 => NUM_SFIXED32,
-        FieldKind::Int64 => NUM_INT64,
-        FieldKind::Sint64 => NUM_SINT64,
-        FieldKind::Sfixed64 => NUM_SFIXED64,
-        FieldKind::Uint32 => NUM_UINT32,
-        FieldKind::Fixed32 => NUM_FIXED32,
-        FieldKind::Uint64 => NUM_UINT64,
-        FieldKind::Fixed64 => NUM_FIXED64,
-        FieldKind::Float => FLOAT_FAM,
-        FieldKind::Double => DOUBLE_FAM,
-        _ => return Vec::new(),
-    };
-    let field_path_expr = field_path_scalar(name_lit, field_number, fam.scalar_ty);
-    let value = quote! { #v };
-    let mut out: Vec<TokenStream> = Vec::new();
-    let push_cmp = |out: &mut Vec<TokenStream>,
-                    inner_name: &str,
-                    inner_num: i32,
-                    rule_id: String,
-                    cond: TokenStream| {
-        let field = field_path_expr.clone();
-        let rule = rule_path_scalar(
-            fam.family,
-            fam.outer_number,
-            inner_name,
-            inner_num,
-            fam.scalar_ty,
-        );
-        out.push(quote! {
-            if #cond {
-                violations.push(::protovalidate_buffa::Violation {
-                    field: #field, rule: #rule,
-                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                    message: ::std::borrow::Cow::Borrowed(""),
-                    for_key: false,
-                });
-            }
-        });
-    };
-    match kind {
-        FieldKind::Int32 | FieldKind::Sint32 | FieldKind::Sfixed32 => {
-            if let Some(n) = &std.int32 {
-                if let (Some(lo), Some(hi)) = (n.gt, n.lt) {
-                    out.push(range_check(
-                        &field_path_expr,
-                        fam,
-                        false,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let (Some(lo), Some(hi)) = (n.gte, n.lte) {
-                    out.push(range_check(
-                        &field_path_expr,
-                        fam,
-                        true,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let Some(c) = n.r#const {
-                    push_cmp(
-                        &mut out,
-                        "const",
-                        INNER_CONST,
-                        format!("{}.const", fam.family),
-                        quote! { #v != #c },
-                    );
-                }
-                if let Some(lo) = n.gt {
-                    push_cmp(
-                        &mut out,
-                        "gt",
-                        INNER_GT,
-                        format!("{}.gt", fam.family),
-                        quote! { #v <= #lo },
-                    );
-                }
-                if let Some(lo) = n.gte {
-                    push_cmp(
-                        &mut out,
-                        "gte",
-                        INNER_GTE,
-                        format!("{}.gte", fam.family),
-                        quote! { #v < #lo },
-                    );
-                }
-                if let Some(hi) = n.lt {
-                    push_cmp(
-                        &mut out,
-                        "lt",
-                        INNER_LT,
-                        format!("{}.lt", fam.family),
-                        quote! { #v >= #hi },
-                    );
-                }
-                if let Some(hi) = n.lte {
-                    push_cmp(
-                        &mut out,
-                        "lte",
-                        INNER_LTE,
-                        format!("{}.lte", fam.family),
-                        quote! { #v > #hi },
-                    );
-                }
-                if !n.in_set.is_empty() {
-                    let set = &n.in_set;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "in",
-                        INNER_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.in", fam.family);
-                    out.push(quote! {
-                        {
-                            const ALLOWED: &[i32] = &[ #( #set ),* ];
-                            if !ALLOWED.contains(&#v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-                if !n.not_in.is_empty() {
-                    let set = &n.not_in;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "not_in",
-                        INNER_NOT_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.not_in", fam.family);
-                    out.push(quote! {
-                        {
-                            const DISALLOWED: &[i32] = &[ #( #set ),* ];
-                            if DISALLOWED.contains(&#v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-            }
-        }
-        FieldKind::Int64 | FieldKind::Sint64 | FieldKind::Sfixed64 => {
-            if let Some(n) = &std.int64 {
-                if let (Some(lo), Some(hi)) = (n.gt, n.lt) {
-                    out.push(range_check(
-                        &field_path_expr,
-                        fam,
-                        false,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let (Some(lo), Some(hi)) = (n.gte, n.lte) {
-                    out.push(range_check(
-                        &field_path_expr,
-                        fam,
-                        true,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let Some(c) = n.r#const {
-                    push_cmp(
-                        &mut out,
-                        "const",
-                        INNER_CONST,
-                        format!("{}.const", fam.family),
-                        quote! { #v != #c },
-                    );
-                }
-                if let Some(lo) = n.gt {
-                    push_cmp(
-                        &mut out,
-                        "gt",
-                        INNER_GT,
-                        format!("{}.gt", fam.family),
-                        quote! { #v <= #lo },
-                    );
-                }
-                if let Some(lo) = n.gte {
-                    push_cmp(
-                        &mut out,
-                        "gte",
-                        INNER_GTE,
-                        format!("{}.gte", fam.family),
-                        quote! { #v < #lo },
-                    );
-                }
-                if let Some(hi) = n.lt {
-                    push_cmp(
-                        &mut out,
-                        "lt",
-                        INNER_LT,
-                        format!("{}.lt", fam.family),
-                        quote! { #v >= #hi },
-                    );
-                }
-                if let Some(hi) = n.lte {
-                    push_cmp(
-                        &mut out,
-                        "lte",
-                        INNER_LTE,
-                        format!("{}.lte", fam.family),
-                        quote! { #v > #hi },
-                    );
-                }
-                if !n.in_set.is_empty() {
-                    let set = &n.in_set;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "in",
-                        INNER_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.in", fam.family);
-                    out.push(quote! {
-                        {
-                            const ALLOWED: &[i64] = &[ #( #set ),* ];
-                            if !ALLOWED.contains(&#v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-                if !n.not_in.is_empty() {
-                    let set = &n.not_in;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "not_in",
-                        INNER_NOT_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.not_in", fam.family);
-                    out.push(quote! {
-                        {
-                            const DISALLOWED: &[i64] = &[ #( #set ),* ];
-                            if DISALLOWED.contains(&#v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-            }
-        }
-        FieldKind::Uint32 | FieldKind::Fixed32 => {
-            if let Some(n) = &std.uint32 {
-                if let (Some(lo), Some(hi)) = (n.gt, n.lt) {
-                    out.push(range_check(
-                        &field_path_expr,
-                        fam,
-                        false,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let (Some(lo), Some(hi)) = (n.gte, n.lte) {
-                    out.push(range_check(
-                        &field_path_expr,
-                        fam,
-                        true,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let Some(c) = n.r#const {
-                    push_cmp(
-                        &mut out,
-                        "const",
-                        INNER_CONST,
-                        format!("{}.const", fam.family),
-                        quote! { #v != #c },
-                    );
-                }
-                if let Some(lo) = n.gt {
-                    push_cmp(
-                        &mut out,
-                        "gt",
-                        INNER_GT,
-                        format!("{}.gt", fam.family),
-                        quote! { #v <= #lo },
-                    );
-                }
-                if let Some(lo) = n.gte {
-                    push_cmp(
-                        &mut out,
-                        "gte",
-                        INNER_GTE,
-                        format!("{}.gte", fam.family),
-                        quote! { #v < #lo },
-                    );
-                }
-                if let Some(hi) = n.lt {
-                    push_cmp(
-                        &mut out,
-                        "lt",
-                        INNER_LT,
-                        format!("{}.lt", fam.family),
-                        quote! { #v >= #hi },
-                    );
-                }
-                if let Some(hi) = n.lte {
-                    push_cmp(
-                        &mut out,
-                        "lte",
-                        INNER_LTE,
-                        format!("{}.lte", fam.family),
-                        quote! { #v > #hi },
-                    );
-                }
-                if !n.in_set.is_empty() {
-                    let set = &n.in_set;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "in",
-                        INNER_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.in", fam.family);
-                    out.push(quote! {
-                        {
-                            const ALLOWED: &[u32] = &[ #( #set ),* ];
-                            if !ALLOWED.contains(&#v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-                if !n.not_in.is_empty() {
-                    let set = &n.not_in;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "not_in",
-                        INNER_NOT_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.not_in", fam.family);
-                    out.push(quote! {
-                        {
-                            const DISALLOWED: &[u32] = &[ #( #set ),* ];
-                            if DISALLOWED.contains(&#v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-            }
-        }
-        FieldKind::Uint64 | FieldKind::Fixed64 => {
-            if let Some(n) = &std.uint64 {
-                if let (Some(lo), Some(hi)) = (n.gt, n.lt) {
-                    out.push(range_check(
-                        &field_path_expr,
-                        fam,
-                        false,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let (Some(lo), Some(hi)) = (n.gte, n.lte) {
-                    out.push(range_check(
-                        &field_path_expr,
-                        fam,
-                        true,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let Some(c) = n.r#const {
-                    push_cmp(
-                        &mut out,
-                        "const",
-                        INNER_CONST,
-                        format!("{}.const", fam.family),
-                        quote! { #v != #c },
-                    );
-                }
-                if let Some(lo) = n.gt {
-                    push_cmp(
-                        &mut out,
-                        "gt",
-                        INNER_GT,
-                        format!("{}.gt", fam.family),
-                        quote! { #v <= #lo },
-                    );
-                }
-                if let Some(lo) = n.gte {
-                    push_cmp(
-                        &mut out,
-                        "gte",
-                        INNER_GTE,
-                        format!("{}.gte", fam.family),
-                        quote! { #v < #lo },
-                    );
-                }
-                if let Some(hi) = n.lt {
-                    push_cmp(
-                        &mut out,
-                        "lt",
-                        INNER_LT,
-                        format!("{}.lt", fam.family),
-                        quote! { #v >= #hi },
-                    );
-                }
-                if let Some(hi) = n.lte {
-                    push_cmp(
-                        &mut out,
-                        "lte",
-                        INNER_LTE,
-                        format!("{}.lte", fam.family),
-                        quote! { #v > #hi },
-                    );
-                }
-                if !n.in_set.is_empty() {
-                    let set = &n.in_set;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "in",
-                        INNER_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.in", fam.family);
-                    out.push(quote! {
-                        {
-                            const ALLOWED: &[u64] = &[ #( #set ),* ];
-                            if !ALLOWED.contains(&#v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-                if !n.not_in.is_empty() {
-                    let set = &n.not_in;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "not_in",
-                        INNER_NOT_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.not_in", fam.family);
-                    out.push(quote! {
-                        {
-                            const DISALLOWED: &[u64] = &[ #( #set ),* ];
-                            if DISALLOWED.contains(&#v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-            }
-        }
-        FieldKind::Float => {
-            if let Some(f) = &std.float {
-                if let (Some(lo), Some(hi)) = (f.gt, f.lt) {
-                    out.push(range_check_fp(
-                        &field_path_expr,
-                        fam,
-                        false,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let (Some(lo), Some(hi)) = (f.gte, f.lte) {
-                    out.push(range_check_fp(
-                        &field_path_expr,
-                        fam,
-                        true,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let Some(c) = f.r#const {
-                    push_cmp(
-                        &mut out,
-                        "const",
-                        INNER_CONST,
-                        format!("{}.const", fam.family),
-                        quote! { #v != #c },
-                    );
-                }
-                if let Some(lo) = f.gt {
-                    push_cmp(
-                        &mut out,
-                        "gt",
-                        INNER_GT,
-                        format!("{}.gt", fam.family),
-                        quote! { !(#v > #lo) },
-                    );
-                }
-                if let Some(lo) = f.gte {
-                    push_cmp(
-                        &mut out,
-                        "gte",
-                        INNER_GTE,
-                        format!("{}.gte", fam.family),
-                        quote! { !(#v >= #lo) },
-                    );
-                }
-                if let Some(hi) = f.lt {
-                    push_cmp(
-                        &mut out,
-                        "lt",
-                        INNER_LT,
-                        format!("{}.lt", fam.family),
-                        quote! { !(#v < #hi) },
-                    );
-                }
-                if let Some(hi) = f.lte {
-                    push_cmp(
-                        &mut out,
-                        "lte",
-                        INNER_LTE,
-                        format!("{}.lte", fam.family),
-                        quote! { !(#v <= #hi) },
-                    );
-                }
-                if !f.in_set.is_empty() {
-                    let set = &f.in_set;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "in",
-                        INNER_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.in", fam.family);
-                    out.push(quote! {
-                        {
-                            const ALLOWED: &[f32] = &[ #( #set ),* ];
-                            if !ALLOWED.iter().any(|c| *c == #v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-                if !f.not_in.is_empty() {
-                    let set = &f.not_in;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "not_in",
-                        INNER_NOT_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.not_in", fam.family);
-                    out.push(quote! {
-                        {
-                            const DISALLOWED: &[f32] = &[ #( #set ),* ];
-                            if DISALLOWED.iter().any(|c| *c == #v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-                if f.finite {
-                    push_cmp(
-                        &mut out,
-                        "finite",
-                        INNER_FINITE,
-                        format!("{}.finite", fam.family),
-                        quote! { !::protovalidate_buffa::rules::float::is_finite_f32(#v) },
-                    );
-                }
-            }
-        }
-        FieldKind::Double => {
-            if let Some(d) = &std.double {
-                if let (Some(lo), Some(hi)) = (d.gt, d.lt) {
-                    out.push(range_check_fp(
-                        &field_path_expr,
-                        fam,
-                        false,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let (Some(lo), Some(hi)) = (d.gte, d.lte) {
-                    out.push(range_check_fp(
-                        &field_path_expr,
-                        fam,
-                        true,
-                        &quote! { #lo },
-                        &quote! { #hi },
-                        &value,
-                        hi < lo,
-                    ));
-                    return out;
-                }
-                if let Some(c) = d.r#const {
-                    push_cmp(
-                        &mut out,
-                        "const",
-                        INNER_CONST,
-                        format!("{}.const", fam.family),
-                        quote! { #v != #c },
-                    );
-                }
-                if let Some(lo) = d.gt {
-                    push_cmp(
-                        &mut out,
-                        "gt",
-                        INNER_GT,
-                        format!("{}.gt", fam.family),
-                        quote! { !(#v > #lo) },
-                    );
-                }
-                if let Some(lo) = d.gte {
-                    push_cmp(
-                        &mut out,
-                        "gte",
-                        INNER_GTE,
-                        format!("{}.gte", fam.family),
-                        quote! { !(#v >= #lo) },
-                    );
-                }
-                if let Some(hi) = d.lt {
-                    push_cmp(
-                        &mut out,
-                        "lt",
-                        INNER_LT,
-                        format!("{}.lt", fam.family),
-                        quote! { !(#v < #hi) },
-                    );
-                }
-                if let Some(hi) = d.lte {
-                    push_cmp(
-                        &mut out,
-                        "lte",
-                        INNER_LTE,
-                        format!("{}.lte", fam.family),
-                        quote! { !(#v <= #hi) },
-                    );
-                }
-                if !d.in_set.is_empty() {
-                    let set = &d.in_set;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "in",
-                        INNER_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.in", fam.family);
-                    out.push(quote! {
-                        {
-                            const ALLOWED: &[f64] = &[ #( #set ),* ];
-                            if !ALLOWED.iter().any(|c| *c == #v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-                if !d.not_in.is_empty() {
-                    let set = &d.not_in;
-                    let field = field_path_expr.clone();
-                    let rule = rule_path_scalar(
-                        fam.family,
-                        fam.outer_number,
-                        "not_in",
-                        INNER_NOT_IN,
-                        fam.scalar_ty,
-                    );
-                    let rule_id = format!("{}.not_in", fam.family);
-                    out.push(quote! {
-                        {
-                            const DISALLOWED: &[f64] = &[ #( #set ),* ];
-                            if DISALLOWED.iter().any(|c| *c == #v) {
-                                violations.push(::protovalidate_buffa::Violation {
-                                    field: #field, rule: #rule,
-                                    rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
-                                    message: ::std::borrow::Cow::Borrowed(""),
-                                    for_key: false,
-                                });
-                            }
-                        }
-                    });
-                }
-                if d.finite {
-                    push_cmp(
-                        &mut out,
-                        "finite",
-                        INNER_FINITE,
-                        format!("{}.finite", fam.family),
-                        quote! { !::protovalidate_buffa::rules::float::is_finite_f64(#v) },
-                    );
-                }
-            }
-        }
-        _ => {}
-    }
-    out
+) -> Result<Vec<TokenStream>> {
+    let site = RuleSite::field(name_lit, field_number, "Message");
+    emit_scalar_rules(&quote! { v }, inner, &field.standard, &site)
 }
 
 pub(crate) const fn kind_to_field_type(k: &FieldKind) -> &'static str {
@@ -5120,16 +3150,12 @@ const INNER_GTE: i32 = 5;
 const INNER_IN: i32 = 6;
 const INNER_NOT_IN: i32 = 7;
 
-fn emit_bool(
-    value: &TokenStream,
-    name_lit: &str,
-    field_number: i32,
-    b: &BoolStandard,
-) -> Vec<TokenStream> {
+fn emit_bool(value: &TokenStream, site: &RuleSite, b: &BoolStandard) -> Vec<TokenStream> {
+    let for_key = site.for_key;
     let mut out: Vec<TokenStream> = Vec::new();
     if let Some(c) = b.r#const {
-        let field_path = field_path_scalar(name_lit, field_number, "Bool");
-        let rule_path = rule_path_scalar("bool", 13, "const", 1, "Bool");
+        let field_path = site.field_path();
+        let rule_path = site.rule("bool", 13, "const", 1, "Bool");
         out.push(quote! {
             if #value != #c {
                 violations.push(::protovalidate_buffa::Violation {
@@ -5139,7 +3165,7 @@ fn emit_bool(
                     message: ::std::borrow::Cow::Owned(::std::format!(
                         "value must equal {} (got {})", #c, #value
                     )),
-                    for_key: false,
+                    for_key: #for_key,
                 });
             }
         });
@@ -5170,7 +3196,7 @@ fn field_path_scalar(name: &str, number: i32, type_variant: &str) -> TokenStream
 /// Float/double variant of `range_check`: uses negated satisfaction checks so
 /// NaN values correctly violate (since `NaN op X` is always false in IEEE).
 fn range_check_fp(
-    field: &TokenStream,
+    site: &RuleSite,
     fam: NumFamily,
     inclusive_bounds: bool,
     lower: &TokenStream,
@@ -5178,12 +3204,14 @@ fn range_check_fp(
     val: &TokenStream,
     is_exclusive: bool,
 ) -> TokenStream {
+    let field = site.field_path();
+    let for_key = site.for_key;
     let (lo_name, lo_num, rule_id_base) = if inclusive_bounds {
         ("gte", INNER_GTE, format!("{}.gte_lte", fam.family))
     } else {
         ("gt", INNER_GT, format!("{}.gt_lt", fam.family))
     };
-    let rule_path = rule_path_scalar(fam.family, fam.outer_number, lo_name, lo_num, fam.scalar_ty);
+    let rule_path = site.rule(fam.family, fam.outer_number, lo_name, lo_num, fam.scalar_ty);
     let rule_id = if is_exclusive {
         format!("{rule_id_base}_exclusive")
     } else {
@@ -5210,7 +3238,7 @@ fn range_check_fp(
                 field: #field, rule: #rule_path,
                 rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                 message: ::std::borrow::Cow::Owned(::std::format!("value out of range (got {})", #val)),
-                for_key: false,
+                for_key: #for_key,
             });
         }
     }
@@ -5220,7 +3248,7 @@ fn range_check_fp(
 /// gt/lt. `is_exclusive=true` means the value must be OUTSIDE the range
 /// (upper < lower).
 fn range_check(
-    field: &TokenStream,
+    site: &RuleSite,
     fam: NumFamily,
     inclusive_bounds: bool,
     lower: &TokenStream,
@@ -5228,12 +3256,14 @@ fn range_check(
     val: &TokenStream,
     is_exclusive: bool,
 ) -> TokenStream {
+    let field = site.field_path();
+    let for_key = site.for_key;
     let (lo_name, lo_num, rule_id_base) = if inclusive_bounds {
         ("gte", INNER_GTE, format!("{}.gte_lte", fam.family))
     } else {
         ("gt", INNER_GT, format!("{}.gt_lt", fam.family))
     };
-    let rule_path = rule_path_scalar(fam.family, fam.outer_number, lo_name, lo_num, fam.scalar_ty);
+    let rule_path = site.rule(fam.family, fam.outer_number, lo_name, lo_num, fam.scalar_ty);
     let rule_id = if is_exclusive {
         format!("{rule_id_base}_exclusive")
     } else {
@@ -5262,7 +3292,7 @@ fn range_check(
                 field: #field, rule: #rule_path,
                 rule_id: ::std::borrow::Cow::Borrowed(#rule_id),
                 message: ::std::borrow::Cow::Owned(::std::format!("value out of range (got {})", #val)),
-                for_key: false,
+                for_key: #for_key,
             });
         }
     }
@@ -5299,6 +3329,197 @@ fn rule_path_scalar(
                 },
             ],
         }
+    }
+}
+
+/// Where a scalar's standard rules apply: the violation's field path, the
+/// rule-path elements above the rule family, and `for_key`. Singular fields,
+/// wrapper values, repeated items, and map keys and values differ only here,
+/// so they share one emitter per rule family through [`emit_scalar_rules`].
+pub(crate) struct RuleSite {
+    field: TokenStream,
+    rule_prefix: Vec<TokenStream>,
+    for_key: bool,
+}
+
+impl RuleSite {
+    /// A singular field. Wrapper fields pass `"Message"` as the type.
+    pub(crate) fn field(name: &str, number: i32, type_variant: &str) -> Self {
+        Self {
+            field: field_path_scalar(name, number, type_variant),
+            rule_prefix: Vec::new(),
+            for_key: false,
+        }
+    }
+
+    /// The element of a repeated field at the enclosing loop's `idx`.
+    pub(crate) fn repeated_item(name: &str, number: i32, element_type_variant: &str) -> Self {
+        let ety = format_ident!("{}", element_type_variant);
+        Self {
+            field: quote! {
+                ::protovalidate_buffa::FieldPath {
+                    elements: ::std::vec![
+                        ::protovalidate_buffa::FieldPathElement {
+                            field_number: Some(#number),
+                            field_name: Some(::std::borrow::Cow::Borrowed(#name)),
+                            field_type: Some(::protovalidate_buffa::FieldType::#ety),
+                            key_type: None,
+                            value_type: None,
+                            subscript: Some(::protovalidate_buffa::Subscript::Index(idx as u64)),
+                        },
+                    ],
+                }
+            },
+            rule_prefix: vec![
+                rule_path_element("repeated", 18, "Message"),
+                rule_path_element("items", 4, "Message"),
+            ],
+            for_key: false,
+        }
+    }
+
+    /// The key (`for_key`) or value of the map entry at the enclosing loop's
+    /// `key`, addressed by `key_subscript`.
+    pub(crate) fn map_entry(
+        name: &str,
+        number: i32,
+        key_type_variant: &str,
+        value_type_variant: &str,
+        key_subscript: &TokenStream,
+        for_key: bool,
+    ) -> Self {
+        let kty = format_ident!("{}", key_type_variant);
+        let vty = format_ident!("{}", value_type_variant);
+        let side = if for_key {
+            rule_path_element("keys", 4, "Message")
+        } else {
+            rule_path_element("values", 5, "Message")
+        };
+        Self {
+            field: quote! {
+                ::protovalidate_buffa::FieldPath {
+                    elements: ::std::vec![
+                        ::protovalidate_buffa::FieldPathElement {
+                            field_number: Some(#number),
+                            field_name: Some(::std::borrow::Cow::Borrowed(#name)),
+                            field_type: Some(::protovalidate_buffa::FieldType::Message),
+                            key_type: Some(::protovalidate_buffa::FieldType::#kty),
+                            value_type: Some(::protovalidate_buffa::FieldType::#vty),
+                            subscript: Some(#key_subscript),
+                        },
+                    ],
+                }
+            },
+            rule_prefix: vec![rule_path_element("map", 19, "Message"), side],
+            for_key,
+        }
+    }
+
+    fn field_path(&self) -> TokenStream {
+        self.field.clone()
+    }
+
+    /// Rule path `<prefix>.<family>.<rule>`, as [`rule_path_scalar`] builds it
+    /// for a singular field.
+    fn rule(
+        &self,
+        outer_name: &str,
+        outer_number: i32,
+        inner_name: &str,
+        inner_number: i32,
+        inner_type_variant: &str,
+    ) -> TokenStream {
+        let prefix = &self.rule_prefix;
+        let outer = rule_path_element(outer_name, outer_number, "Message");
+        let inner = rule_path_element(inner_name, inner_number, inner_type_variant);
+        quote! {
+            ::protovalidate_buffa::FieldPath {
+                elements: ::std::vec![ #( #prefix, )* #outer, #inner ],
+            }
+        }
+    }
+}
+
+fn rule_path_element(name: &str, number: i32, type_variant: &str) -> TokenStream {
+    let ty = format_ident!("{}", type_variant);
+    quote! {
+        ::protovalidate_buffa::FieldPathElement {
+            field_number: Some(#number),
+            field_name: Some(::std::borrow::Cow::Borrowed(#name)),
+            field_type: Some(::protovalidate_buffa::FieldType::#ty),
+            key_type: None,
+            value_type: None,
+            subscript: None,
+        }
+    }
+}
+
+/// Apply the standard rules for a scalar `kind` to `value` at `site`.
+///
+/// `value` is the scalar itself for numeric and bool kinds, anything that
+/// borrows as `str` or `[u8]` for string and bytes, and the enum value for
+/// enums. Every position a scalar can take calls this, so a rule implemented
+/// here applies to all of them.
+pub(crate) fn emit_scalar_rules(
+    value: &TokenStream,
+    kind: &FieldKind,
+    std: &crate::scan::StandardRules,
+    site: &RuleSite,
+) -> Result<Vec<TokenStream>> {
+    let checks = match kind {
+        FieldKind::String => std
+            .string
+            .as_ref()
+            .map(|s| emit_string_value(value, site, s)),
+        FieldKind::Bytes => std.bytes.as_ref().map(|b| emit_bytes_value(value, site, b)),
+        FieldKind::Int32 | FieldKind::Sint32 | FieldKind::Sfixed32 => std
+            .int32
+            .as_ref()
+            .and_then(|n| num_family(kind).map(|fam| emit_num_i32_like(value, site, fam, n))),
+        FieldKind::Int64 | FieldKind::Sint64 | FieldKind::Sfixed64 => std
+            .int64
+            .as_ref()
+            .and_then(|n| num_family(kind).map(|fam| emit_int64(value, site, fam, n))),
+        FieldKind::Uint32 | FieldKind::Fixed32 => std
+            .uint32
+            .as_ref()
+            .and_then(|n| num_family(kind).map(|fam| emit_uint32(value, site, fam, n))),
+        FieldKind::Uint64 | FieldKind::Fixed64 => std
+            .uint64
+            .as_ref()
+            .and_then(|n| num_family(kind).map(|fam| emit_uint64(value, site, fam, n))),
+        FieldKind::Float => std.float.as_ref().map(|f| emit_float(value, site, f)),
+        FieldKind::Double => std.double.as_ref().map(|d| emit_double(value, site, d)),
+        FieldKind::Bool => std.bool_rules.as_ref().map(|b| emit_bool(value, site, b)),
+        FieldKind::Enum { full_name } => std
+            .enum_rules
+            .as_ref()
+            .map(|e| emit_enum_value(value, site, e, full_name))
+            .transpose()?,
+        FieldKind::Message { .. }
+        | FieldKind::Repeated(_)
+        | FieldKind::Map { .. }
+        | FieldKind::Optional(_)
+        | FieldKind::Wrapper(_) => None,
+    };
+    Ok(checks.unwrap_or_default())
+}
+
+const fn num_family(kind: &FieldKind) -> Option<NumFamily> {
+    match kind {
+        FieldKind::Int32 => Some(NUM_INT32),
+        FieldKind::Sint32 => Some(NUM_SINT32),
+        FieldKind::Sfixed32 => Some(NUM_SFIXED32),
+        FieldKind::Int64 => Some(NUM_INT64),
+        FieldKind::Sint64 => Some(NUM_SINT64),
+        FieldKind::Sfixed64 => Some(NUM_SFIXED64),
+        FieldKind::Uint32 => Some(NUM_UINT32),
+        FieldKind::Fixed32 => Some(NUM_FIXED32),
+        FieldKind::Uint64 => Some(NUM_UINT64),
+        FieldKind::Fixed64 => Some(NUM_FIXED64),
+        FieldKind::Float => Some(FLOAT_FAM),
+        FieldKind::Double => Some(DOUBLE_FAM),
+        _ => None,
     }
 }
 
@@ -5716,14 +3937,4 @@ const fn ns_cmp_lt(a: (i64, i32), b: (i64, i32)) -> bool {
     let an = (a.0 as i128) * 1_000_000_000 + (a.1 as i128);
     let bn = (b.0 as i128) * 1_000_000_000 + (b.1 as i128);
     an < bn
-}
-
-/// String checks for an unwrapped optional field or selected oneof member.
-pub(crate) fn emit_string_checks_on(
-    v: &syn::Ident,
-    name_lit: &str,
-    field_number: i32,
-    s: &StringStandard,
-) -> Vec<TokenStream> {
-    emit_string_value(&quote! { #v }, name_lit, field_number, s)
 }

@@ -43,6 +43,8 @@ fn main() {
     files.extend(module_tree_sources.iter().map(|name| proto_root.join(name)));
     let validation_sources = [
         "validation/cel_filter/filter.proto",
+        "validation/collection_rules/proto3/collections.proto",
+        "validation/collection_rules/editions2024/collections.proto",
         "validation/float_presence/proto2/floats.proto",
         "validation/float_presence/proto3/floats.proto",
         "validation/float_presence/editions2023/floats.proto",

@@ -1,0 +1,865 @@
+//! Standard rules apply to repeated items, map keys, map values, explicit
+//! presence fields, and wrappers as they do to singular fields, in owned
+//! messages and views.
+
+#![warn(rust_2018_idioms)]
+
+use buffa::{HasMessageView, encoding::encode_varint};
+use protovalidate_buffa::{Subscript, Validate, Violation};
+
+#[allow(
+    clippy::all,
+    clippy::pedantic,
+    clippy::nursery,
+    dead_code,
+    elided_lifetimes_in_paths,
+    non_camel_case_types,
+    unused_imports,
+    rustdoc::broken_intra_doc_links,
+    rustdoc::invalid_html_tags,
+    reason = "buffa-build generated code"
+)]
+mod generated {
+    include!(concat!(env!("OUT_DIR"), "/_include.rs"));
+}
+
+/// One scalar value with its wire encoding.
+#[derive(Clone, Copy, Debug)]
+enum Wire {
+    Str(&'static str),
+    Bytes(&'static [u8]),
+    Int(i64),
+    Uint(u64),
+    Sint(i64),
+    Fixed32(u32),
+    Fixed64(u64),
+    Sfixed32(i32),
+    Sfixed64(i64),
+    Float(f32),
+    Double(f64),
+    Bool(bool),
+}
+
+impl Wire {
+    fn put(self, number: u32, bytes: &mut Vec<u8>) {
+        let tag = u64::from(number) << 3;
+        match self {
+            Self::Str(value) => put_len(number, value.as_bytes(), bytes),
+            Self::Bytes(value) => put_len(number, value, bytes),
+            Self::Int(value) => {
+                encode_varint(tag, bytes);
+                encode_varint(value.cast_unsigned(), bytes);
+            }
+            Self::Uint(value) => {
+                encode_varint(tag, bytes);
+                encode_varint(value, bytes);
+            }
+            Self::Sint(value) => {
+                encode_varint(tag, bytes);
+                encode_varint(((value << 1) ^ (value >> 63)).cast_unsigned(), bytes);
+            }
+            Self::Bool(value) => {
+                encode_varint(tag, bytes);
+                encode_varint(u64::from(value), bytes);
+            }
+            Self::Fixed32(value) => put_fixed(tag | 5, &value.to_le_bytes(), bytes),
+            Self::Sfixed32(value) => put_fixed(tag | 5, &value.to_le_bytes(), bytes),
+            Self::Float(value) => put_fixed(tag | 5, &value.to_le_bytes(), bytes),
+            Self::Fixed64(value) => put_fixed(tag | 1, &value.to_le_bytes(), bytes),
+            Self::Sfixed64(value) => put_fixed(tag | 1, &value.to_le_bytes(), bytes),
+            Self::Double(value) => put_fixed(tag | 1, &value.to_le_bytes(), bytes),
+        }
+    }
+
+    /// Bytes, float, and double cannot be map keys.
+    const fn is_key_type(self) -> bool {
+        !matches!(self, Self::Bytes(_) | Self::Float(_) | Self::Double(_))
+    }
+
+    fn assert_key(self, subscript: Option<&Subscript>) {
+        match (self, subscript) {
+            (Self::Str(expected), Some(Subscript::StringKey(actual))) => {
+                assert_eq!(actual, expected);
+            }
+            (
+                Self::Int(expected) | Self::Sint(expected) | Self::Sfixed64(expected),
+                Some(Subscript::IntKey(actual)),
+            ) => assert_eq!(*actual, expected),
+            (Self::Sfixed32(expected), Some(Subscript::IntKey(actual))) => {
+                assert_eq!(*actual, i64::from(expected));
+            }
+            (Self::Uint(expected) | Self::Fixed64(expected), Some(Subscript::UintKey(actual))) => {
+                assert_eq!(*actual, expected);
+            }
+            (Self::Fixed32(expected), Some(Subscript::UintKey(actual))) => {
+                assert_eq!(*actual, u64::from(expected));
+            }
+            (Self::Bool(expected), Some(Subscript::BoolKey(actual))) => {
+                assert_eq!(*actual, expected);
+            }
+            _ => panic!("unexpected subscript {subscript:?} for key {self:?}"),
+        }
+    }
+}
+
+fn put_len(number: u32, value: &[u8], bytes: &mut Vec<u8>) {
+    encode_varint((u64::from(number) << 3) | 2, bytes);
+    encode_varint(value.len() as u64, bytes);
+    bytes.extend_from_slice(value);
+}
+
+fn put_fixed(tag: u64, value: &[u8], bytes: &mut Vec<u8>) {
+    encode_varint(tag, bytes);
+    bytes.extend_from_slice(value);
+}
+
+/// A rule set on field `number` of `Items`, `Keys`, and `Values`, with a value
+/// that satisfies it and one that breaks it.
+struct Case {
+    number: u32,
+    rule: &'static str,
+    rule_id: &'static str,
+    good: Wire,
+    bad: Wire,
+}
+
+const fn case(
+    number: u32,
+    rule: &'static str,
+    rule_id: &'static str,
+    good: Wire,
+    bad: Wire,
+) -> Case {
+    Case {
+        number,
+        rule,
+        rule_id,
+        good,
+        bad,
+    }
+}
+
+use Wire::{
+    Bool, Bytes, Double, Fixed32, Fixed64, Float, Int, Sfixed32, Sfixed64, Sint, Str, Uint,
+};
+
+// Generated alongside `proto/validation/collection_rules/*/collections.proto`:
+// every StringRules and BytesRules rule, and every numeric and bool rule.
+const CASES: &[Case] = &[
+    case(1, "string.const", "string.const", Str("abc"), Str("abx")),
+    case(2, "string.len", "string.len", Str("abc"), Str("ab")),
+    case(3, "string.min_len", "string.min_len", Str("ab"), Str("a")),
+    case(
+        4,
+        "string.max_len",
+        "string.max_len",
+        Str("abc"),
+        Str("abcd"),
+    ),
+    case(
+        5,
+        "string.len_bytes",
+        "string.len_bytes",
+        Str("abc"),
+        Str("ab"),
+    ),
+    case(
+        6,
+        "string.min_bytes",
+        "string.min_bytes",
+        Str("ab"),
+        Str("a"),
+    ),
+    case(
+        7,
+        "string.max_bytes",
+        "string.max_bytes",
+        Str("abc"),
+        Str("\u{430}\u{431}\u{432}"),
+    ),
+    case(8, "string.pattern", "string.pattern", Str("aa"), Str("ab")),
+    case(
+        9,
+        "string.prefix",
+        "string.prefix",
+        Str("prefix"),
+        Str("fix"),
+    ),
+    case(
+        10,
+        "string.suffix",
+        "string.suffix",
+        Str("suffix"),
+        Str("suffer"),
+    ),
+    case(
+        11,
+        "string.contains",
+        "string.contains",
+        Str("amidst"),
+        Str("amist"),
+    ),
+    case(
+        12,
+        "string.not_contains",
+        "string.not_contains",
+        Str("good"),
+        Str("badge"),
+    ),
+    case(13, "string.in", "string.in", Str("a"), Str("c")),
+    case(14, "string.not_in", "string.not_in", Str("a"), Str("x")),
+    case(
+        15,
+        "string.email",
+        "string.email",
+        Str("a@example.com"),
+        Str("not-an-email"),
+    ),
+    case(
+        16,
+        "string.hostname",
+        "string.hostname",
+        Str("example.com"),
+        Str("-bad-"),
+    ),
+    case(
+        17,
+        "string.ip",
+        "string.ip",
+        Str("127.0.0.1"),
+        Str("300.0.0.1"),
+    ),
+    case(
+        18,
+        "string.ipv4",
+        "string.ipv4",
+        Str("127.0.0.1"),
+        Str("::1"),
+    ),
+    case(
+        19,
+        "string.ipv6",
+        "string.ipv6",
+        Str("::1"),
+        Str("127.0.0.1"),
+    ),
+    case(
+        20,
+        "string.uri",
+        "string.uri",
+        Str("https://example.com/x"),
+        Str("not a uri"),
+    ),
+    case(
+        21,
+        "string.uri_ref",
+        "string.uri_ref",
+        Str("./path"),
+        Str("\\"),
+    ),
+    case(
+        22,
+        "string.address",
+        "string.address",
+        Str("example.com"),
+        Str("-bad-"),
+    ),
+    case(
+        23,
+        "string.uuid",
+        "string.uuid",
+        Str("8a6b7e2c-8c4c-4f7a-9d5e-1b2c3d4e5f60"),
+        Str("not-a-uuid"),
+    ),
+    case(
+        24,
+        "string.tuuid",
+        "string.tuuid",
+        Str("8a6b7e2c8c4c4f7a9d5e1b2c3d4e5f60"),
+        Str("not-a-uuid"),
+    ),
+    case(
+        25,
+        "string.ip_with_prefixlen",
+        "string.ip_with_prefixlen",
+        Str("10.0.0.1/8"),
+        Str("10.0.0.1"),
+    ),
+    case(
+        26,
+        "string.ipv4_with_prefixlen",
+        "string.ipv4_with_prefixlen",
+        Str("10.0.0.1/8"),
+        Str("::1/64"),
+    ),
+    case(
+        27,
+        "string.ipv6_with_prefixlen",
+        "string.ipv6_with_prefixlen",
+        Str("::1/64"),
+        Str("10.0.0.1/8"),
+    ),
+    case(
+        28,
+        "string.ip_prefix",
+        "string.ip_prefix",
+        Str("10.0.0.0/8"),
+        Str("10.0.0.1/8"),
+    ),
+    case(
+        29,
+        "string.ipv4_prefix",
+        "string.ipv4_prefix",
+        Str("10.0.0.0/8"),
+        Str("10.0.0.1/8"),
+    ),
+    case(
+        30,
+        "string.ipv6_prefix",
+        "string.ipv6_prefix",
+        Str("2001:db8::/32"),
+        Str("2001:db8::1/32"),
+    ),
+    case(
+        31,
+        "string.host_and_port",
+        "string.host_and_port",
+        Str("example.com:443"),
+        Str("example.com"),
+    ),
+    case(
+        32,
+        "string.ulid",
+        "string.ulid",
+        Str("01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+        Str("not-a-ulid"),
+    ),
+    case(
+        33,
+        "string.protobuf_fqn",
+        "string.protobuf_fqn",
+        Str("foo.bar"),
+        Str("foo..bar"),
+    ),
+    case(
+        34,
+        "string.protobuf_dot_fqn",
+        "string.protobuf_dot_fqn",
+        Str(".foo.bar"),
+        Str(".foo..bar"),
+    ),
+    case(
+        35,
+        "string.well_known_regex",
+        "string.well_known_regex.header_name",
+        Str("content-type"),
+        Str("bad name"),
+    ),
+    case(
+        36,
+        "bytes.const",
+        "bytes.const",
+        Bytes(b"abc"),
+        Bytes(b"abx"),
+    ),
+    case(37, "bytes.len", "bytes.len", Bytes(b"abc"), Bytes(b"ab")),
+    case(
+        38,
+        "bytes.min_len",
+        "bytes.min_len",
+        Bytes(b"ab"),
+        Bytes(b"a"),
+    ),
+    case(
+        39,
+        "bytes.max_len",
+        "bytes.max_len",
+        Bytes(b"abc"),
+        Bytes(b"abcd"),
+    ),
+    case(
+        40,
+        "bytes.pattern",
+        "bytes.pattern",
+        Bytes(b"aa"),
+        Bytes(b"ab"),
+    ),
+    case(
+        41,
+        "bytes.prefix",
+        "bytes.prefix",
+        Bytes(b"prefix"),
+        Bytes(b"fix"),
+    ),
+    case(
+        42,
+        "bytes.suffix",
+        "bytes.suffix",
+        Bytes(b"suffix"),
+        Bytes(b"suffer"),
+    ),
+    case(
+        43,
+        "bytes.contains",
+        "bytes.contains",
+        Bytes(b"amidst"),
+        Bytes(b"amist"),
+    ),
+    case(44, "bytes.in", "bytes.in", Bytes(b"a"), Bytes(b"c")),
+    case(45, "bytes.not_in", "bytes.not_in", Bytes(b"a"), Bytes(b"x")),
+    case(
+        46,
+        "bytes.ip",
+        "bytes.ip",
+        Bytes(b"\x7f\0\0\x01"),
+        Bytes(b"\x7f\0\x01"),
+    ),
+    case(
+        47,
+        "bytes.ipv4",
+        "bytes.ipv4",
+        Bytes(b"\x7f\0\0\x01"),
+        Bytes(b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01"),
+    ),
+    case(
+        48,
+        "bytes.ipv6",
+        "bytes.ipv6",
+        Bytes(b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01"),
+        Bytes(b"\x7f\0\0\x01"),
+    ),
+    case(
+        49,
+        "bytes.uuid",
+        "bytes.uuid",
+        Bytes(b"0123456789abcdef"),
+        Bytes(b"abc"),
+    ),
+    case(50, "int32.const", "int32.const", Int(5), Int(6)),
+    case(51, "int32.lt", "int32.lt", Int(4), Int(5)),
+    case(52, "int32.lte", "int32.lte", Int(5), Int(6)),
+    case(53, "int32.gt", "int32.gt", Int(6), Int(5)),
+    case(54, "int32.gte", "int32.gte", Int(5), Int(4)),
+    case(55, "int32.in", "int32.in", Int(5), Int(7)),
+    case(56, "int32.not_in", "int32.not_in", Int(5), Int(7)),
+    case(57, "int64.const", "int64.const", Int(5), Int(6)),
+    case(58, "int64.lt", "int64.lt", Int(4), Int(5)),
+    case(59, "int64.lte", "int64.lte", Int(5), Int(6)),
+    case(60, "int64.gt", "int64.gt", Int(6), Int(5)),
+    case(61, "int64.gte", "int64.gte", Int(5), Int(4)),
+    case(62, "int64.in", "int64.in", Int(5), Int(7)),
+    case(63, "int64.not_in", "int64.not_in", Int(5), Int(7)),
+    case(64, "uint32.const", "uint32.const", Uint(5), Uint(6)),
+    case(65, "uint32.lt", "uint32.lt", Uint(4), Uint(5)),
+    case(66, "uint32.lte", "uint32.lte", Uint(5), Uint(6)),
+    case(67, "uint32.gt", "uint32.gt", Uint(6), Uint(5)),
+    case(68, "uint32.gte", "uint32.gte", Uint(5), Uint(4)),
+    case(69, "uint32.in", "uint32.in", Uint(5), Uint(7)),
+    case(70, "uint32.not_in", "uint32.not_in", Uint(5), Uint(7)),
+    case(71, "uint64.const", "uint64.const", Uint(5), Uint(6)),
+    case(72, "uint64.lt", "uint64.lt", Uint(4), Uint(5)),
+    case(73, "uint64.lte", "uint64.lte", Uint(5), Uint(6)),
+    case(74, "uint64.gt", "uint64.gt", Uint(6), Uint(5)),
+    case(75, "uint64.gte", "uint64.gte", Uint(5), Uint(4)),
+    case(76, "uint64.in", "uint64.in", Uint(5), Uint(7)),
+    case(77, "uint64.not_in", "uint64.not_in", Uint(5), Uint(7)),
+    case(78, "sint32.const", "sint32.const", Sint(5), Sint(6)),
+    case(79, "sint32.lt", "sint32.lt", Sint(4), Sint(5)),
+    case(80, "sint32.lte", "sint32.lte", Sint(5), Sint(6)),
+    case(81, "sint32.gt", "sint32.gt", Sint(6), Sint(5)),
+    case(82, "sint32.gte", "sint32.gte", Sint(5), Sint(4)),
+    case(83, "sint32.in", "sint32.in", Sint(5), Sint(7)),
+    case(84, "sint32.not_in", "sint32.not_in", Sint(5), Sint(7)),
+    case(85, "sint64.const", "sint64.const", Sint(5), Sint(6)),
+    case(86, "sint64.lt", "sint64.lt", Sint(4), Sint(5)),
+    case(87, "sint64.lte", "sint64.lte", Sint(5), Sint(6)),
+    case(88, "sint64.gt", "sint64.gt", Sint(6), Sint(5)),
+    case(89, "sint64.gte", "sint64.gte", Sint(5), Sint(4)),
+    case(90, "sint64.in", "sint64.in", Sint(5), Sint(7)),
+    case(91, "sint64.not_in", "sint64.not_in", Sint(5), Sint(7)),
+    case(92, "fixed32.const", "fixed32.const", Fixed32(5), Fixed32(6)),
+    case(93, "fixed32.lt", "fixed32.lt", Fixed32(4), Fixed32(5)),
+    case(94, "fixed32.lte", "fixed32.lte", Fixed32(5), Fixed32(6)),
+    case(95, "fixed32.gt", "fixed32.gt", Fixed32(6), Fixed32(5)),
+    case(96, "fixed32.gte", "fixed32.gte", Fixed32(5), Fixed32(4)),
+    case(97, "fixed32.in", "fixed32.in", Fixed32(5), Fixed32(7)),
+    case(
+        98,
+        "fixed32.not_in",
+        "fixed32.not_in",
+        Fixed32(5),
+        Fixed32(7),
+    ),
+    case(99, "fixed64.const", "fixed64.const", Fixed64(5), Fixed64(6)),
+    case(100, "fixed64.lt", "fixed64.lt", Fixed64(4), Fixed64(5)),
+    case(101, "fixed64.lte", "fixed64.lte", Fixed64(5), Fixed64(6)),
+    case(102, "fixed64.gt", "fixed64.gt", Fixed64(6), Fixed64(5)),
+    case(103, "fixed64.gte", "fixed64.gte", Fixed64(5), Fixed64(4)),
+    case(104, "fixed64.in", "fixed64.in", Fixed64(5), Fixed64(7)),
+    case(
+        105,
+        "fixed64.not_in",
+        "fixed64.not_in",
+        Fixed64(5),
+        Fixed64(7),
+    ),
+    case(
+        106,
+        "sfixed32.const",
+        "sfixed32.const",
+        Sfixed32(5),
+        Sfixed32(6),
+    ),
+    case(107, "sfixed32.lt", "sfixed32.lt", Sfixed32(4), Sfixed32(5)),
+    case(
+        108,
+        "sfixed32.lte",
+        "sfixed32.lte",
+        Sfixed32(5),
+        Sfixed32(6),
+    ),
+    case(109, "sfixed32.gt", "sfixed32.gt", Sfixed32(6), Sfixed32(5)),
+    case(
+        110,
+        "sfixed32.gte",
+        "sfixed32.gte",
+        Sfixed32(5),
+        Sfixed32(4),
+    ),
+    case(111, "sfixed32.in", "sfixed32.in", Sfixed32(5), Sfixed32(7)),
+    case(
+        112,
+        "sfixed32.not_in",
+        "sfixed32.not_in",
+        Sfixed32(5),
+        Sfixed32(7),
+    ),
+    case(
+        113,
+        "sfixed64.const",
+        "sfixed64.const",
+        Sfixed64(5),
+        Sfixed64(6),
+    ),
+    case(114, "sfixed64.lt", "sfixed64.lt", Sfixed64(4), Sfixed64(5)),
+    case(
+        115,
+        "sfixed64.lte",
+        "sfixed64.lte",
+        Sfixed64(5),
+        Sfixed64(6),
+    ),
+    case(116, "sfixed64.gt", "sfixed64.gt", Sfixed64(6), Sfixed64(5)),
+    case(
+        117,
+        "sfixed64.gte",
+        "sfixed64.gte",
+        Sfixed64(5),
+        Sfixed64(4),
+    ),
+    case(118, "sfixed64.in", "sfixed64.in", Sfixed64(5), Sfixed64(7)),
+    case(
+        119,
+        "sfixed64.not_in",
+        "sfixed64.not_in",
+        Sfixed64(5),
+        Sfixed64(7),
+    ),
+    case(120, "float.const", "float.const", Float(5.0), Float(6.0)),
+    case(121, "float.lt", "float.lt", Float(4.0), Float(5.0)),
+    case(122, "float.lte", "float.lte", Float(5.0), Float(6.0)),
+    case(123, "float.gt", "float.gt", Float(6.0), Float(5.0)),
+    case(124, "float.gte", "float.gte", Float(5.0), Float(4.0)),
+    case(125, "float.in", "float.in", Float(5.0), Float(7.0)),
+    case(126, "float.not_in", "float.not_in", Float(5.0), Float(7.0)),
+    case(
+        127,
+        "float.finite",
+        "float.finite",
+        Float(1.0),
+        Float(f32::INFINITY),
+    ),
+    case(
+        128,
+        "double.const",
+        "double.const",
+        Double(5.0),
+        Double(6.0),
+    ),
+    case(129, "double.lt", "double.lt", Double(4.0), Double(5.0)),
+    case(130, "double.lte", "double.lte", Double(5.0), Double(6.0)),
+    case(131, "double.gt", "double.gt", Double(6.0), Double(5.0)),
+    case(132, "double.gte", "double.gte", Double(5.0), Double(4.0)),
+    case(133, "double.in", "double.in", Double(5.0), Double(7.0)),
+    case(
+        134,
+        "double.not_in",
+        "double.not_in",
+        Double(5.0),
+        Double(7.0),
+    ),
+    case(
+        135,
+        "double.finite",
+        "double.finite",
+        Double(1.0),
+        Double(f64::INFINITY),
+    ),
+    case(136, "bool.const", "bool.const", Bool(true), Bool(false)),
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Position {
+    Items,
+    Keys,
+    Values,
+}
+
+impl Position {
+    /// Input holding `value`. Items put a valid element first, so a violation
+    /// must carry index 1.
+    fn encode(self, case: &Case, value: Wire) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        let (key, value) = match self {
+            Self::Items => {
+                case.good.put(case.number, &mut bytes);
+                value.put(case.number, &mut bytes);
+                return bytes;
+            }
+            Self::Keys => (value, Str("v")),
+            Self::Values => (Str("k"), value),
+        };
+        let mut entry = Vec::new();
+        key.put(1, &mut entry);
+        value.put(2, &mut entry);
+        put_len(case.number, &entry, &mut bytes);
+        bytes
+    }
+
+    const fn rule_prefix(self) -> &'static str {
+        match self {
+            Self::Items => "repeated.items",
+            Self::Keys => "map.keys",
+            Self::Values => "map.values",
+        }
+    }
+}
+
+fn violations<M>(bytes: &[u8]) -> Result<[Vec<Violation>; 2], buffa::DecodeError>
+where
+    M: HasMessageView + Validate,
+    for<'a> M::View<'a>: Validate,
+{
+    let owned = M::decode_from_slice(bytes)?;
+    let view = M::decode_view(bytes)?;
+    Ok([owned.validate(), view.validate()].map(|result| {
+        result.err().map_or_else(Vec::new, |error| {
+            assert!(error.compile_error.is_none(), "{error:?}");
+            assert!(error.runtime_error.is_none(), "{error:?}");
+            error.violations
+        })
+    }))
+}
+
+fn rule_ids(violations: &[Violation]) -> Vec<&str> {
+    violations.iter().map(|v| v.rule_id.as_ref()).collect()
+}
+
+/// Each case accepts its valid value and refuses its invalid one with one
+/// violation that names the field, the element, and the rule.
+fn assert_cases<M>(position: Position) -> Result<(), buffa::DecodeError>
+where
+    M: HasMessageView + Validate,
+    for<'a> M::View<'a>: Validate,
+{
+    let cases = CASES
+        .iter()
+        .filter(|case| position != Position::Keys || case.bad.is_key_type());
+    // Rules that let an invalid value through, collected so one run names all.
+    let mut missed = Vec::new();
+    for case in cases {
+        for violations in violations::<M>(&position.encode(case, case.good))? {
+            assert!(
+                violations.is_empty(),
+                "{position:?} {}: {violations:?}",
+                case.rule
+            );
+        }
+        for violations in violations::<M>(&position.encode(case, case.bad))? {
+            let [violation] = violations.as_slice() else {
+                missed.push((case.rule, violations));
+                continue;
+            };
+            assert_eq!(violation.rule_id, case.rule_id, "{position:?}");
+            assert_eq!(
+                violation.for_key,
+                position == Position::Keys,
+                "{}",
+                case.rule
+            );
+            let rule = violation
+                .rule
+                .elements
+                .iter()
+                .filter_map(|element| element.field_name.as_deref())
+                .collect::<Vec<_>>()
+                .join(".");
+            assert_eq!(rule, format!("{}.{}", position.rule_prefix(), case.rule));
+            let [field] = violation.field.elements.as_slice() else {
+                panic!("{position:?} {}: {violation:?}", case.rule);
+            };
+            assert_eq!(field.field_number, i32::try_from(case.number).ok());
+            match position {
+                Position::Items => {
+                    assert!(
+                        matches!(field.subscript, Some(Subscript::Index(1))),
+                        "{field:?}"
+                    );
+                }
+                Position::Keys => case.bad.assert_key(field.subscript.as_ref()),
+                Position::Values => Str("k").assert_key(field.subscript.as_ref()),
+            }
+        }
+    }
+    assert!(
+        missed.is_empty(),
+        "{position:?} rules not refused: {missed:#?}"
+    );
+    Ok(())
+}
+
+macro_rules! collection_tests {
+    ($syntax:ident) => {
+        mod $syntax {
+            use super::{
+                Double, Position, Str, Uint, Wire, assert_cases,
+                generated::validation::collection_rules::$syntax::{
+                    ItemCel, ItemMessages, Items, Keys, Presence, Values, Wrappers,
+                },
+                put_len, rule_ids, violations,
+            };
+
+            #[test]
+            fn standard_rules_apply_to_items() -> Result<(), buffa::DecodeError> {
+                assert_cases::<Items>(Position::Items)
+            }
+
+            #[test]
+            fn standard_rules_apply_to_map_keys() -> Result<(), buffa::DecodeError> {
+                assert_cases::<Keys>(Position::Keys)
+            }
+
+            #[test]
+            fn standard_rules_apply_to_map_values() -> Result<(), buffa::DecodeError> {
+                assert_cases::<Values>(Position::Values)
+            }
+
+            #[test]
+            fn item_violations_match_singular_violations() -> Result<(), buffa::DecodeError> {
+                let mut bytes = Vec::new();
+                Double(f64::NEG_INFINITY).put(1, &mut bytes);
+                Double(f64::NEG_INFINITY).put(2, &mut bytes);
+                for violations in violations::<ItemMessages>(&bytes)? {
+                    let (single, items): (Vec<_>, Vec<_>) = violations
+                        .iter()
+                        .partition(|v| v.field.elements[0].field_number == Some(1));
+                    assert_eq!(
+                        rule_ids(&violations),
+                        ["double.gte", "double.finite", "double.gte", "double.finite"]
+                    );
+                    for (single, item) in single.iter().zip(&items) {
+                        assert!(!item.message.is_empty(), "{item:?}");
+                        assert_eq!(item.message, single.message);
+                    }
+                }
+                Ok(())
+            }
+
+            #[test]
+            fn item_cel_rules_run_with_standard_item_rules() -> Result<(), buffa::DecodeError> {
+                for (value, expected) in [
+                    ("a", &[][..]),
+                    ("", &["string.min_len"][..]),
+                    ("a b", &["ids.no_space"][..]),
+                ] {
+                    let mut bytes = Vec::new();
+                    Str(value).put(1, &mut bytes);
+                    for violations in violations::<ItemCel>(&bytes)? {
+                        assert_eq!(rule_ids(&violations), expected, "{value:?}");
+                    }
+                }
+                Ok(())
+            }
+
+            #[test]
+            fn explicit_presence_fields_apply_every_rule() -> Result<(), buffa::DecodeError> {
+                for (values, expected) in [
+                    (
+                        [Wire::Int(1), Uint(5), Wire::Float(1.0), Double(2.0)],
+                        &[][..],
+                    ),
+                    (
+                        [Wire::Int(3), Uint(7), Wire::Float(1.5), Double(2.5)],
+                        &["int32.in", "uint64.not_in", "float.const", "double.const"][..],
+                    ),
+                ] {
+                    let mut bytes = Vec::new();
+                    for (number, value) in (1..).zip(values) {
+                        value.put(number, &mut bytes);
+                    }
+                    for violations in violations::<Presence>(&bytes)? {
+                        assert_eq!(rule_ids(&violations), expected, "{values:?}");
+                    }
+                }
+                Ok(())
+            }
+
+            #[test]
+            fn wrapper_values_apply_every_rule() -> Result<(), buffa::DecodeError> {
+                for (values, expected) in [
+                    (
+                        [
+                            Str("abc"),
+                            Wire::Bytes(b"pq"),
+                            Wire::Int(1),
+                            Double(1.0),
+                            Uint(5),
+                        ],
+                        &[][..],
+                    ),
+                    (
+                        [
+                            Str("\u{430}\u{431}"),
+                            Wire::Bytes(b"q"),
+                            Wire::Int(3),
+                            Double(f64::NAN),
+                            Uint(7),
+                        ],
+                        &[
+                            "string.max_bytes",
+                            "bytes.prefix",
+                            "int32.in",
+                            "double.finite",
+                            "uint64.not_in",
+                        ][..],
+                    ),
+                ] {
+                    let mut bytes = Vec::new();
+                    for (number, value) in (1..).zip(values) {
+                        let mut wrapper = Vec::new();
+                        value.put(1, &mut wrapper);
+                        put_len(number, &wrapper, &mut bytes);
+                    }
+                    for violations in violations::<Wrappers>(&bytes)? {
+                        assert_eq!(rule_ids(&violations), expected, "{values:?}");
+                        assert!(violations.iter().all(|v| !v.for_key));
+                    }
+                }
+                Ok(())
+            }
+        }
+    };
+}
+
+collection_tests!(proto3);
+collection_tests!(editions2024);

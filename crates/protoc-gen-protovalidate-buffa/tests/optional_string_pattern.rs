@@ -1,11 +1,11 @@
 //! Regression test for `optional string` (explicit presence) and oneof string
 //! members carrying a `string.pattern` rule.
 //!
-//! `emit_string_checks_on` is shared between owned messages and borrowed views.
+//! `emit_string_value` is shared between owned messages and borrowed views.
 //! The `pattern` check passes `v` to `Regex::is_match`, which takes `&str`.
 //! These tests pin that the emitted check borrows via `AsRef`, so both
 //! representations compile without cloning. See
-//! `emit_string_checks_on` in `src/emit/field.rs` for why this matters.
+//! `emit_string_value` in `src/emit/field.rs` for why this matters.
 
 use protoc_gen_protovalidate_buffa::emit::render;
 use protoc_gen_protovalidate_buffa::scan::{

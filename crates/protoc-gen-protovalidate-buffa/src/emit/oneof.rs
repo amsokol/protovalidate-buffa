@@ -274,27 +274,9 @@ fn emit_variant_arm(
     // Emit field rules using `v` as the accessor.
     let mut checks: Vec<TokenStream> = Vec::new();
     match &f.field_type {
-        FieldKind::String => {
-            if let Some(s) = &f.standard.string {
-                checks.extend(crate::emit::field::emit_string_checks_on(
-                    &val_ident,
-                    name_lit,
-                    f.field_number,
-                    s,
-                ));
-            }
-        }
-        FieldKind::Bytes => {
-            if let Some(b) = &f.standard.bytes {
-                checks.extend(crate::emit::field::emit_bytes_checks_on(
-                    &val_ident,
-                    name_lit,
-                    f.field_number,
-                    b,
-                ));
-            }
-        }
-        FieldKind::Int32
+        FieldKind::String
+        | FieldKind::Bytes
+        | FieldKind::Int32
         | FieldKind::Sint32
         | FieldKind::Sfixed32
         | FieldKind::Int64
@@ -305,35 +287,20 @@ fn emit_variant_arm(
         | FieldKind::Uint64
         | FieldKind::Fixed64
         | FieldKind::Float
-        | FieldKind::Double => {
-            checks.extend(crate::emit::field::emit_numeric_checks_on(
-                &val_ident,
+        | FieldKind::Double
+        | FieldKind::Bool
+        | FieldKind::Enum { .. } => {
+            let site = crate::emit::field::RuleSite::field(
                 name_lit,
                 f.field_number,
+                crate::emit::field::kind_to_field_type(&f.field_type),
+            );
+            checks.extend(crate::emit::field::emit_scalar_rules(
+                &quote! { #val_ident },
                 &f.field_type,
                 &f.standard,
-            ));
-        }
-        FieldKind::Bool => {
-            if let Some(b) = &f.standard.bool_rules {
-                checks.extend(crate::emit::field::emit_bool_checks_on(
-                    &val_ident,
-                    name_lit,
-                    f.field_number,
-                    b,
-                ));
-            }
-        }
-        FieldKind::Enum { full_name } => {
-            if let Some(e) = &f.standard.enum_rules {
-                checks.extend(crate::emit::field::emit_enum_checks_on(
-                    &val_ident,
-                    name_lit,
-                    f.field_number,
-                    e,
-                    full_name,
-                )?);
-            }
+                &site,
+            )?);
         }
         FieldKind::Message { full_name } if !full_name.starts_with("google.protobuf.") => {
             let fnum = f.field_number;
@@ -359,7 +326,7 @@ fn emit_variant_arm(
         }
         FieldKind::Wrapper(inner) => {
             let inner_checks =
-                crate::emit::field::emit_wrapper_inner(name_lit, f.field_number, inner, f);
+                crate::emit::field::emit_wrapper_inner(name_lit, f.field_number, inner, f)?;
             if !inner_checks.is_empty() {
                 let binding = match inner.as_ref() {
                     FieldKind::String => quote! {

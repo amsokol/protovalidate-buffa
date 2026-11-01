@@ -1,0 +1,1480 @@
+edition = "2024";
+
+package validation.collection_rules.editions2024;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/wrappers.proto";
+
+// Every standard scalar rule on repeated items.
+message Items {
+  repeated string string_const = 1 [(buf.validate.field).repeated.items = {
+    string: {const: "abc"}
+  }];
+  repeated string string_len = 2 [(buf.validate.field).repeated.items = {
+    string: {len: 3}
+  }];
+  repeated string string_min_len = 3 [(buf.validate.field).repeated.items = {
+    string: {min_len: 2}
+  }];
+  repeated string string_max_len = 4 [(buf.validate.field).repeated.items = {
+    string: {max_len: 3}
+  }];
+  repeated string string_len_bytes = 5 [(buf.validate.field).repeated.items = {
+    string: {len_bytes: 3}
+  }];
+  repeated string string_min_bytes = 6 [(buf.validate.field).repeated.items = {
+    string: {min_bytes: 2}
+  }];
+  repeated string string_max_bytes = 7 [(buf.validate.field).repeated.items = {
+    string: {max_bytes: 3}
+  }];
+  repeated string string_pattern = 8 [(buf.validate.field).repeated.items = {
+    string: {pattern: "^a+$"}
+  }];
+  repeated string string_prefix = 9 [(buf.validate.field).repeated.items = {
+    string: {prefix: "pre"}
+  }];
+  repeated string string_suffix = 10 [(buf.validate.field).repeated.items = {
+    string: {suffix: "fix"}
+  }];
+  repeated string string_contains = 11 [(buf.validate.field).repeated.items = {
+    string: {contains: "mid"}
+  }];
+  repeated string string_not_contains = 12 [(buf.validate.field).repeated.items = {
+    string: {not_contains: "bad"}
+  }];
+  repeated string string_in = 13 [(buf.validate.field).repeated.items = {
+    string: {
+      in: [
+        "a",
+        "b"
+      ]
+    }
+  }];
+  repeated string string_not_in = 14 [(buf.validate.field).repeated.items = {
+    string: {
+      not_in: ["x"]
+    }
+  }];
+  repeated string string_email = 15 [(buf.validate.field).repeated.items = {
+    string: {email: true}
+  }];
+  repeated string string_hostname = 16 [(buf.validate.field).repeated.items = {
+    string: {hostname: true}
+  }];
+  repeated string string_ip = 17 [(buf.validate.field).repeated.items = {
+    string: {ip: true}
+  }];
+  repeated string string_ipv4 = 18 [(buf.validate.field).repeated.items = {
+    string: {ipv4: true}
+  }];
+  repeated string string_ipv6 = 19 [(buf.validate.field).repeated.items = {
+    string: {ipv6: true}
+  }];
+  repeated string string_uri = 20 [(buf.validate.field).repeated.items = {
+    string: {uri: true}
+  }];
+  repeated string string_uri_ref = 21 [(buf.validate.field).repeated.items = {
+    string: {uri_ref: true}
+  }];
+  repeated string string_address = 22 [(buf.validate.field).repeated.items = {
+    string: {address: true}
+  }];
+  repeated string string_uuid = 23 [(buf.validate.field).repeated.items = {
+    string: {uuid: true}
+  }];
+  repeated string string_tuuid = 24 [(buf.validate.field).repeated.items = {
+    string: {tuuid: true}
+  }];
+  repeated string string_ip_with_prefixlen = 25 [(buf.validate.field).repeated.items = {
+    string: {ip_with_prefixlen: true}
+  }];
+  repeated string string_ipv4_with_prefixlen = 26 [(buf.validate.field).repeated.items = {
+    string: {ipv4_with_prefixlen: true}
+  }];
+  repeated string string_ipv6_with_prefixlen = 27 [(buf.validate.field).repeated.items = {
+    string: {ipv6_with_prefixlen: true}
+  }];
+  repeated string string_ip_prefix = 28 [(buf.validate.field).repeated.items = {
+    string: {ip_prefix: true}
+  }];
+  repeated string string_ipv4_prefix = 29 [(buf.validate.field).repeated.items = {
+    string: {ipv4_prefix: true}
+  }];
+  repeated string string_ipv6_prefix = 30 [(buf.validate.field).repeated.items = {
+    string: {ipv6_prefix: true}
+  }];
+  repeated string string_host_and_port = 31 [(buf.validate.field).repeated.items = {
+    string: {host_and_port: true}
+  }];
+  repeated string string_ulid = 32 [(buf.validate.field).repeated.items = {
+    string: {ulid: true}
+  }];
+  repeated string string_protobuf_fqn = 33 [(buf.validate.field).repeated.items = {
+    string: {protobuf_fqn: true}
+  }];
+  repeated string string_protobuf_dot_fqn = 34 [(buf.validate.field).repeated.items = {
+    string: {protobuf_dot_fqn: true}
+  }];
+  repeated string string_well_known_regex = 35 [(buf.validate.field).repeated.items = {
+    string: {well_known_regex: KNOWN_REGEX_HTTP_HEADER_NAME}
+  }];
+  repeated bytes bytes_const = 36 [(buf.validate.field).repeated.items = {
+    bytes: {const: "abc"}
+  }];
+  repeated bytes bytes_len = 37 [(buf.validate.field).repeated.items = {
+    bytes: {len: 3}
+  }];
+  repeated bytes bytes_min_len = 38 [(buf.validate.field).repeated.items = {
+    bytes: {min_len: 2}
+  }];
+  repeated bytes bytes_max_len = 39 [(buf.validate.field).repeated.items = {
+    bytes: {max_len: 3}
+  }];
+  repeated bytes bytes_pattern = 40 [(buf.validate.field).repeated.items = {
+    bytes: {pattern: "^a+$"}
+  }];
+  repeated bytes bytes_prefix = 41 [(buf.validate.field).repeated.items = {
+    bytes: {prefix: "pre"}
+  }];
+  repeated bytes bytes_suffix = 42 [(buf.validate.field).repeated.items = {
+    bytes: {suffix: "fix"}
+  }];
+  repeated bytes bytes_contains = 43 [(buf.validate.field).repeated.items = {
+    bytes: {contains: "mid"}
+  }];
+  repeated bytes bytes_in = 44 [(buf.validate.field).repeated.items = {
+    bytes: {
+      in: [
+        "a",
+        "b"
+      ]
+    }
+  }];
+  repeated bytes bytes_not_in = 45 [(buf.validate.field).repeated.items = {
+    bytes: {
+      not_in: ["x"]
+    }
+  }];
+  repeated bytes bytes_ip = 46 [(buf.validate.field).repeated.items = {
+    bytes: {ip: true}
+  }];
+  repeated bytes bytes_ipv4 = 47 [(buf.validate.field).repeated.items = {
+    bytes: {ipv4: true}
+  }];
+  repeated bytes bytes_ipv6 = 48 [(buf.validate.field).repeated.items = {
+    bytes: {ipv6: true}
+  }];
+  repeated bytes bytes_uuid = 49 [(buf.validate.field).repeated.items = {
+    bytes: {uuid: true}
+  }];
+  repeated int32 int32_const = 50 [(buf.validate.field).repeated.items = {
+    int32: {const: 5}
+  }];
+  repeated int32 int32_lt = 51 [(buf.validate.field).repeated.items = {
+    int32: {lt: 5}
+  }];
+  repeated int32 int32_lte = 52 [(buf.validate.field).repeated.items = {
+    int32: {lte: 5}
+  }];
+  repeated int32 int32_gt = 53 [(buf.validate.field).repeated.items = {
+    int32: {gt: 5}
+  }];
+  repeated int32 int32_gte = 54 [(buf.validate.field).repeated.items = {
+    int32: {gte: 5}
+  }];
+  repeated int32 int32_in = 55 [(buf.validate.field).repeated.items = {
+    int32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated int32 int32_not_in = 56 [(buf.validate.field).repeated.items = {
+    int32: {
+      not_in: [7]
+    }
+  }];
+  repeated int64 int64_const = 57 [(buf.validate.field).repeated.items = {
+    int64: {const: 5}
+  }];
+  repeated int64 int64_lt = 58 [(buf.validate.field).repeated.items = {
+    int64: {lt: 5}
+  }];
+  repeated int64 int64_lte = 59 [(buf.validate.field).repeated.items = {
+    int64: {lte: 5}
+  }];
+  repeated int64 int64_gt = 60 [(buf.validate.field).repeated.items = {
+    int64: {gt: 5}
+  }];
+  repeated int64 int64_gte = 61 [(buf.validate.field).repeated.items = {
+    int64: {gte: 5}
+  }];
+  repeated int64 int64_in = 62 [(buf.validate.field).repeated.items = {
+    int64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated int64 int64_not_in = 63 [(buf.validate.field).repeated.items = {
+    int64: {
+      not_in: [7]
+    }
+  }];
+  repeated uint32 uint32_const = 64 [(buf.validate.field).repeated.items = {
+    uint32: {const: 5}
+  }];
+  repeated uint32 uint32_lt = 65 [(buf.validate.field).repeated.items = {
+    uint32: {lt: 5}
+  }];
+  repeated uint32 uint32_lte = 66 [(buf.validate.field).repeated.items = {
+    uint32: {lte: 5}
+  }];
+  repeated uint32 uint32_gt = 67 [(buf.validate.field).repeated.items = {
+    uint32: {gt: 5}
+  }];
+  repeated uint32 uint32_gte = 68 [(buf.validate.field).repeated.items = {
+    uint32: {gte: 5}
+  }];
+  repeated uint32 uint32_in = 69 [(buf.validate.field).repeated.items = {
+    uint32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated uint32 uint32_not_in = 70 [(buf.validate.field).repeated.items = {
+    uint32: {
+      not_in: [7]
+    }
+  }];
+  repeated uint64 uint64_const = 71 [(buf.validate.field).repeated.items = {
+    uint64: {const: 5}
+  }];
+  repeated uint64 uint64_lt = 72 [(buf.validate.field).repeated.items = {
+    uint64: {lt: 5}
+  }];
+  repeated uint64 uint64_lte = 73 [(buf.validate.field).repeated.items = {
+    uint64: {lte: 5}
+  }];
+  repeated uint64 uint64_gt = 74 [(buf.validate.field).repeated.items = {
+    uint64: {gt: 5}
+  }];
+  repeated uint64 uint64_gte = 75 [(buf.validate.field).repeated.items = {
+    uint64: {gte: 5}
+  }];
+  repeated uint64 uint64_in = 76 [(buf.validate.field).repeated.items = {
+    uint64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated uint64 uint64_not_in = 77 [(buf.validate.field).repeated.items = {
+    uint64: {
+      not_in: [7]
+    }
+  }];
+  repeated sint32 sint32_const = 78 [(buf.validate.field).repeated.items = {
+    sint32: {const: 5}
+  }];
+  repeated sint32 sint32_lt = 79 [(buf.validate.field).repeated.items = {
+    sint32: {lt: 5}
+  }];
+  repeated sint32 sint32_lte = 80 [(buf.validate.field).repeated.items = {
+    sint32: {lte: 5}
+  }];
+  repeated sint32 sint32_gt = 81 [(buf.validate.field).repeated.items = {
+    sint32: {gt: 5}
+  }];
+  repeated sint32 sint32_gte = 82 [(buf.validate.field).repeated.items = {
+    sint32: {gte: 5}
+  }];
+  repeated sint32 sint32_in = 83 [(buf.validate.field).repeated.items = {
+    sint32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated sint32 sint32_not_in = 84 [(buf.validate.field).repeated.items = {
+    sint32: {
+      not_in: [7]
+    }
+  }];
+  repeated sint64 sint64_const = 85 [(buf.validate.field).repeated.items = {
+    sint64: {const: 5}
+  }];
+  repeated sint64 sint64_lt = 86 [(buf.validate.field).repeated.items = {
+    sint64: {lt: 5}
+  }];
+  repeated sint64 sint64_lte = 87 [(buf.validate.field).repeated.items = {
+    sint64: {lte: 5}
+  }];
+  repeated sint64 sint64_gt = 88 [(buf.validate.field).repeated.items = {
+    sint64: {gt: 5}
+  }];
+  repeated sint64 sint64_gte = 89 [(buf.validate.field).repeated.items = {
+    sint64: {gte: 5}
+  }];
+  repeated sint64 sint64_in = 90 [(buf.validate.field).repeated.items = {
+    sint64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated sint64 sint64_not_in = 91 [(buf.validate.field).repeated.items = {
+    sint64: {
+      not_in: [7]
+    }
+  }];
+  repeated fixed32 fixed32_const = 92 [(buf.validate.field).repeated.items = {
+    fixed32: {const: 5}
+  }];
+  repeated fixed32 fixed32_lt = 93 [(buf.validate.field).repeated.items = {
+    fixed32: {lt: 5}
+  }];
+  repeated fixed32 fixed32_lte = 94 [(buf.validate.field).repeated.items = {
+    fixed32: {lte: 5}
+  }];
+  repeated fixed32 fixed32_gt = 95 [(buf.validate.field).repeated.items = {
+    fixed32: {gt: 5}
+  }];
+  repeated fixed32 fixed32_gte = 96 [(buf.validate.field).repeated.items = {
+    fixed32: {gte: 5}
+  }];
+  repeated fixed32 fixed32_in = 97 [(buf.validate.field).repeated.items = {
+    fixed32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated fixed32 fixed32_not_in = 98 [(buf.validate.field).repeated.items = {
+    fixed32: {
+      not_in: [7]
+    }
+  }];
+  repeated fixed64 fixed64_const = 99 [(buf.validate.field).repeated.items = {
+    fixed64: {const: 5}
+  }];
+  repeated fixed64 fixed64_lt = 100 [(buf.validate.field).repeated.items = {
+    fixed64: {lt: 5}
+  }];
+  repeated fixed64 fixed64_lte = 101 [(buf.validate.field).repeated.items = {
+    fixed64: {lte: 5}
+  }];
+  repeated fixed64 fixed64_gt = 102 [(buf.validate.field).repeated.items = {
+    fixed64: {gt: 5}
+  }];
+  repeated fixed64 fixed64_gte = 103 [(buf.validate.field).repeated.items = {
+    fixed64: {gte: 5}
+  }];
+  repeated fixed64 fixed64_in = 104 [(buf.validate.field).repeated.items = {
+    fixed64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated fixed64 fixed64_not_in = 105 [(buf.validate.field).repeated.items = {
+    fixed64: {
+      not_in: [7]
+    }
+  }];
+  repeated sfixed32 sfixed32_const = 106 [(buf.validate.field).repeated.items = {
+    sfixed32: {const: 5}
+  }];
+  repeated sfixed32 sfixed32_lt = 107 [(buf.validate.field).repeated.items = {
+    sfixed32: {lt: 5}
+  }];
+  repeated sfixed32 sfixed32_lte = 108 [(buf.validate.field).repeated.items = {
+    sfixed32: {lte: 5}
+  }];
+  repeated sfixed32 sfixed32_gt = 109 [(buf.validate.field).repeated.items = {
+    sfixed32: {gt: 5}
+  }];
+  repeated sfixed32 sfixed32_gte = 110 [(buf.validate.field).repeated.items = {
+    sfixed32: {gte: 5}
+  }];
+  repeated sfixed32 sfixed32_in = 111 [(buf.validate.field).repeated.items = {
+    sfixed32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated sfixed32 sfixed32_not_in = 112 [(buf.validate.field).repeated.items = {
+    sfixed32: {
+      not_in: [7]
+    }
+  }];
+  repeated sfixed64 sfixed64_const = 113 [(buf.validate.field).repeated.items = {
+    sfixed64: {const: 5}
+  }];
+  repeated sfixed64 sfixed64_lt = 114 [(buf.validate.field).repeated.items = {
+    sfixed64: {lt: 5}
+  }];
+  repeated sfixed64 sfixed64_lte = 115 [(buf.validate.field).repeated.items = {
+    sfixed64: {lte: 5}
+  }];
+  repeated sfixed64 sfixed64_gt = 116 [(buf.validate.field).repeated.items = {
+    sfixed64: {gt: 5}
+  }];
+  repeated sfixed64 sfixed64_gte = 117 [(buf.validate.field).repeated.items = {
+    sfixed64: {gte: 5}
+  }];
+  repeated sfixed64 sfixed64_in = 118 [(buf.validate.field).repeated.items = {
+    sfixed64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated sfixed64 sfixed64_not_in = 119 [(buf.validate.field).repeated.items = {
+    sfixed64: {
+      not_in: [7]
+    }
+  }];
+  repeated float float_const = 120 [(buf.validate.field).repeated.items = {
+    float: {const: 5}
+  }];
+  repeated float float_lt = 121 [(buf.validate.field).repeated.items = {
+    float: {lt: 5}
+  }];
+  repeated float float_lte = 122 [(buf.validate.field).repeated.items = {
+    float: {lte: 5}
+  }];
+  repeated float float_gt = 123 [(buf.validate.field).repeated.items = {
+    float: {gt: 5}
+  }];
+  repeated float float_gte = 124 [(buf.validate.field).repeated.items = {
+    float: {gte: 5}
+  }];
+  repeated float float_in = 125 [(buf.validate.field).repeated.items = {
+    float: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated float float_not_in = 126 [(buf.validate.field).repeated.items = {
+    float: {
+      not_in: [7]
+    }
+  }];
+  repeated float float_finite = 127 [(buf.validate.field).repeated.items = {
+    float: {finite: true}
+  }];
+  repeated double double_const = 128 [(buf.validate.field).repeated.items = {
+    double: {const: 5}
+  }];
+  repeated double double_lt = 129 [(buf.validate.field).repeated.items = {
+    double: {lt: 5}
+  }];
+  repeated double double_lte = 130 [(buf.validate.field).repeated.items = {
+    double: {lte: 5}
+  }];
+  repeated double double_gt = 131 [(buf.validate.field).repeated.items = {
+    double: {gt: 5}
+  }];
+  repeated double double_gte = 132 [(buf.validate.field).repeated.items = {
+    double: {gte: 5}
+  }];
+  repeated double double_in = 133 [(buf.validate.field).repeated.items = {
+    double: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  repeated double double_not_in = 134 [(buf.validate.field).repeated.items = {
+    double: {
+      not_in: [7]
+    }
+  }];
+  repeated double double_finite = 135 [(buf.validate.field).repeated.items = {
+    double: {finite: true}
+  }];
+  repeated bool bool_const = 136 [(buf.validate.field).repeated.items = {
+    bool: {const: true}
+  }];
+}
+
+// Every standard rule a map key type supports, on map keys.
+message Keys {
+  map<string, string> string_const = 1 [(buf.validate.field).map.keys = {
+    string: {const: "abc"}
+  }];
+  map<string, string> string_len = 2 [(buf.validate.field).map.keys = {
+    string: {len: 3}
+  }];
+  map<string, string> string_min_len = 3 [(buf.validate.field).map.keys = {
+    string: {min_len: 2}
+  }];
+  map<string, string> string_max_len = 4 [(buf.validate.field).map.keys = {
+    string: {max_len: 3}
+  }];
+  map<string, string> string_len_bytes = 5 [(buf.validate.field).map.keys = {
+    string: {len_bytes: 3}
+  }];
+  map<string, string> string_min_bytes = 6 [(buf.validate.field).map.keys = {
+    string: {min_bytes: 2}
+  }];
+  map<string, string> string_max_bytes = 7 [(buf.validate.field).map.keys = {
+    string: {max_bytes: 3}
+  }];
+  map<string, string> string_pattern = 8 [(buf.validate.field).map.keys = {
+    string: {pattern: "^a+$"}
+  }];
+  map<string, string> string_prefix = 9 [(buf.validate.field).map.keys = {
+    string: {prefix: "pre"}
+  }];
+  map<string, string> string_suffix = 10 [(buf.validate.field).map.keys = {
+    string: {suffix: "fix"}
+  }];
+  map<string, string> string_contains = 11 [(buf.validate.field).map.keys = {
+    string: {contains: "mid"}
+  }];
+  map<string, string> string_not_contains = 12 [(buf.validate.field).map.keys = {
+    string: {not_contains: "bad"}
+  }];
+  map<string, string> string_in = 13 [(buf.validate.field).map.keys = {
+    string: {
+      in: [
+        "a",
+        "b"
+      ]
+    }
+  }];
+  map<string, string> string_not_in = 14 [(buf.validate.field).map.keys = {
+    string: {
+      not_in: ["x"]
+    }
+  }];
+  map<string, string> string_email = 15 [(buf.validate.field).map.keys = {
+    string: {email: true}
+  }];
+  map<string, string> string_hostname = 16 [(buf.validate.field).map.keys = {
+    string: {hostname: true}
+  }];
+  map<string, string> string_ip = 17 [(buf.validate.field).map.keys = {
+    string: {ip: true}
+  }];
+  map<string, string> string_ipv4 = 18 [(buf.validate.field).map.keys = {
+    string: {ipv4: true}
+  }];
+  map<string, string> string_ipv6 = 19 [(buf.validate.field).map.keys = {
+    string: {ipv6: true}
+  }];
+  map<string, string> string_uri = 20 [(buf.validate.field).map.keys = {
+    string: {uri: true}
+  }];
+  map<string, string> string_uri_ref = 21 [(buf.validate.field).map.keys = {
+    string: {uri_ref: true}
+  }];
+  map<string, string> string_address = 22 [(buf.validate.field).map.keys = {
+    string: {address: true}
+  }];
+  map<string, string> string_uuid = 23 [(buf.validate.field).map.keys = {
+    string: {uuid: true}
+  }];
+  map<string, string> string_tuuid = 24 [(buf.validate.field).map.keys = {
+    string: {tuuid: true}
+  }];
+  map<string, string> string_ip_with_prefixlen = 25 [(buf.validate.field).map.keys = {
+    string: {ip_with_prefixlen: true}
+  }];
+  map<string, string> string_ipv4_with_prefixlen = 26 [(buf.validate.field).map.keys = {
+    string: {ipv4_with_prefixlen: true}
+  }];
+  map<string, string> string_ipv6_with_prefixlen = 27 [(buf.validate.field).map.keys = {
+    string: {ipv6_with_prefixlen: true}
+  }];
+  map<string, string> string_ip_prefix = 28 [(buf.validate.field).map.keys = {
+    string: {ip_prefix: true}
+  }];
+  map<string, string> string_ipv4_prefix = 29 [(buf.validate.field).map.keys = {
+    string: {ipv4_prefix: true}
+  }];
+  map<string, string> string_ipv6_prefix = 30 [(buf.validate.field).map.keys = {
+    string: {ipv6_prefix: true}
+  }];
+  map<string, string> string_host_and_port = 31 [(buf.validate.field).map.keys = {
+    string: {host_and_port: true}
+  }];
+  map<string, string> string_ulid = 32 [(buf.validate.field).map.keys = {
+    string: {ulid: true}
+  }];
+  map<string, string> string_protobuf_fqn = 33 [(buf.validate.field).map.keys = {
+    string: {protobuf_fqn: true}
+  }];
+  map<string, string> string_protobuf_dot_fqn = 34 [(buf.validate.field).map.keys = {
+    string: {protobuf_dot_fqn: true}
+  }];
+  map<string, string> string_well_known_regex = 35 [(buf.validate.field).map.keys = {
+    string: {well_known_regex: KNOWN_REGEX_HTTP_HEADER_NAME}
+  }];
+  map<int32, string> int32_const = 50 [(buf.validate.field).map.keys = {
+    int32: {const: 5}
+  }];
+  map<int32, string> int32_lt = 51 [(buf.validate.field).map.keys = {
+    int32: {lt: 5}
+  }];
+  map<int32, string> int32_lte = 52 [(buf.validate.field).map.keys = {
+    int32: {lte: 5}
+  }];
+  map<int32, string> int32_gt = 53 [(buf.validate.field).map.keys = {
+    int32: {gt: 5}
+  }];
+  map<int32, string> int32_gte = 54 [(buf.validate.field).map.keys = {
+    int32: {gte: 5}
+  }];
+  map<int32, string> int32_in = 55 [(buf.validate.field).map.keys = {
+    int32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<int32, string> int32_not_in = 56 [(buf.validate.field).map.keys = {
+    int32: {
+      not_in: [7]
+    }
+  }];
+  map<int64, string> int64_const = 57 [(buf.validate.field).map.keys = {
+    int64: {const: 5}
+  }];
+  map<int64, string> int64_lt = 58 [(buf.validate.field).map.keys = {
+    int64: {lt: 5}
+  }];
+  map<int64, string> int64_lte = 59 [(buf.validate.field).map.keys = {
+    int64: {lte: 5}
+  }];
+  map<int64, string> int64_gt = 60 [(buf.validate.field).map.keys = {
+    int64: {gt: 5}
+  }];
+  map<int64, string> int64_gte = 61 [(buf.validate.field).map.keys = {
+    int64: {gte: 5}
+  }];
+  map<int64, string> int64_in = 62 [(buf.validate.field).map.keys = {
+    int64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<int64, string> int64_not_in = 63 [(buf.validate.field).map.keys = {
+    int64: {
+      not_in: [7]
+    }
+  }];
+  map<uint32, string> uint32_const = 64 [(buf.validate.field).map.keys = {
+    uint32: {const: 5}
+  }];
+  map<uint32, string> uint32_lt = 65 [(buf.validate.field).map.keys = {
+    uint32: {lt: 5}
+  }];
+  map<uint32, string> uint32_lte = 66 [(buf.validate.field).map.keys = {
+    uint32: {lte: 5}
+  }];
+  map<uint32, string> uint32_gt = 67 [(buf.validate.field).map.keys = {
+    uint32: {gt: 5}
+  }];
+  map<uint32, string> uint32_gte = 68 [(buf.validate.field).map.keys = {
+    uint32: {gte: 5}
+  }];
+  map<uint32, string> uint32_in = 69 [(buf.validate.field).map.keys = {
+    uint32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<uint32, string> uint32_not_in = 70 [(buf.validate.field).map.keys = {
+    uint32: {
+      not_in: [7]
+    }
+  }];
+  map<uint64, string> uint64_const = 71 [(buf.validate.field).map.keys = {
+    uint64: {const: 5}
+  }];
+  map<uint64, string> uint64_lt = 72 [(buf.validate.field).map.keys = {
+    uint64: {lt: 5}
+  }];
+  map<uint64, string> uint64_lte = 73 [(buf.validate.field).map.keys = {
+    uint64: {lte: 5}
+  }];
+  map<uint64, string> uint64_gt = 74 [(buf.validate.field).map.keys = {
+    uint64: {gt: 5}
+  }];
+  map<uint64, string> uint64_gte = 75 [(buf.validate.field).map.keys = {
+    uint64: {gte: 5}
+  }];
+  map<uint64, string> uint64_in = 76 [(buf.validate.field).map.keys = {
+    uint64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<uint64, string> uint64_not_in = 77 [(buf.validate.field).map.keys = {
+    uint64: {
+      not_in: [7]
+    }
+  }];
+  map<sint32, string> sint32_const = 78 [(buf.validate.field).map.keys = {
+    sint32: {const: 5}
+  }];
+  map<sint32, string> sint32_lt = 79 [(buf.validate.field).map.keys = {
+    sint32: {lt: 5}
+  }];
+  map<sint32, string> sint32_lte = 80 [(buf.validate.field).map.keys = {
+    sint32: {lte: 5}
+  }];
+  map<sint32, string> sint32_gt = 81 [(buf.validate.field).map.keys = {
+    sint32: {gt: 5}
+  }];
+  map<sint32, string> sint32_gte = 82 [(buf.validate.field).map.keys = {
+    sint32: {gte: 5}
+  }];
+  map<sint32, string> sint32_in = 83 [(buf.validate.field).map.keys = {
+    sint32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<sint32, string> sint32_not_in = 84 [(buf.validate.field).map.keys = {
+    sint32: {
+      not_in: [7]
+    }
+  }];
+  map<sint64, string> sint64_const = 85 [(buf.validate.field).map.keys = {
+    sint64: {const: 5}
+  }];
+  map<sint64, string> sint64_lt = 86 [(buf.validate.field).map.keys = {
+    sint64: {lt: 5}
+  }];
+  map<sint64, string> sint64_lte = 87 [(buf.validate.field).map.keys = {
+    sint64: {lte: 5}
+  }];
+  map<sint64, string> sint64_gt = 88 [(buf.validate.field).map.keys = {
+    sint64: {gt: 5}
+  }];
+  map<sint64, string> sint64_gte = 89 [(buf.validate.field).map.keys = {
+    sint64: {gte: 5}
+  }];
+  map<sint64, string> sint64_in = 90 [(buf.validate.field).map.keys = {
+    sint64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<sint64, string> sint64_not_in = 91 [(buf.validate.field).map.keys = {
+    sint64: {
+      not_in: [7]
+    }
+  }];
+  map<fixed32, string> fixed32_const = 92 [(buf.validate.field).map.keys = {
+    fixed32: {const: 5}
+  }];
+  map<fixed32, string> fixed32_lt = 93 [(buf.validate.field).map.keys = {
+    fixed32: {lt: 5}
+  }];
+  map<fixed32, string> fixed32_lte = 94 [(buf.validate.field).map.keys = {
+    fixed32: {lte: 5}
+  }];
+  map<fixed32, string> fixed32_gt = 95 [(buf.validate.field).map.keys = {
+    fixed32: {gt: 5}
+  }];
+  map<fixed32, string> fixed32_gte = 96 [(buf.validate.field).map.keys = {
+    fixed32: {gte: 5}
+  }];
+  map<fixed32, string> fixed32_in = 97 [(buf.validate.field).map.keys = {
+    fixed32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<fixed32, string> fixed32_not_in = 98 [(buf.validate.field).map.keys = {
+    fixed32: {
+      not_in: [7]
+    }
+  }];
+  map<fixed64, string> fixed64_const = 99 [(buf.validate.field).map.keys = {
+    fixed64: {const: 5}
+  }];
+  map<fixed64, string> fixed64_lt = 100 [(buf.validate.field).map.keys = {
+    fixed64: {lt: 5}
+  }];
+  map<fixed64, string> fixed64_lte = 101 [(buf.validate.field).map.keys = {
+    fixed64: {lte: 5}
+  }];
+  map<fixed64, string> fixed64_gt = 102 [(buf.validate.field).map.keys = {
+    fixed64: {gt: 5}
+  }];
+  map<fixed64, string> fixed64_gte = 103 [(buf.validate.field).map.keys = {
+    fixed64: {gte: 5}
+  }];
+  map<fixed64, string> fixed64_in = 104 [(buf.validate.field).map.keys = {
+    fixed64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<fixed64, string> fixed64_not_in = 105 [(buf.validate.field).map.keys = {
+    fixed64: {
+      not_in: [7]
+    }
+  }];
+  map<sfixed32, string> sfixed32_const = 106 [(buf.validate.field).map.keys = {
+    sfixed32: {const: 5}
+  }];
+  map<sfixed32, string> sfixed32_lt = 107 [(buf.validate.field).map.keys = {
+    sfixed32: {lt: 5}
+  }];
+  map<sfixed32, string> sfixed32_lte = 108 [(buf.validate.field).map.keys = {
+    sfixed32: {lte: 5}
+  }];
+  map<sfixed32, string> sfixed32_gt = 109 [(buf.validate.field).map.keys = {
+    sfixed32: {gt: 5}
+  }];
+  map<sfixed32, string> sfixed32_gte = 110 [(buf.validate.field).map.keys = {
+    sfixed32: {gte: 5}
+  }];
+  map<sfixed32, string> sfixed32_in = 111 [(buf.validate.field).map.keys = {
+    sfixed32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<sfixed32, string> sfixed32_not_in = 112 [(buf.validate.field).map.keys = {
+    sfixed32: {
+      not_in: [7]
+    }
+  }];
+  map<sfixed64, string> sfixed64_const = 113 [(buf.validate.field).map.keys = {
+    sfixed64: {const: 5}
+  }];
+  map<sfixed64, string> sfixed64_lt = 114 [(buf.validate.field).map.keys = {
+    sfixed64: {lt: 5}
+  }];
+  map<sfixed64, string> sfixed64_lte = 115 [(buf.validate.field).map.keys = {
+    sfixed64: {lte: 5}
+  }];
+  map<sfixed64, string> sfixed64_gt = 116 [(buf.validate.field).map.keys = {
+    sfixed64: {gt: 5}
+  }];
+  map<sfixed64, string> sfixed64_gte = 117 [(buf.validate.field).map.keys = {
+    sfixed64: {gte: 5}
+  }];
+  map<sfixed64, string> sfixed64_in = 118 [(buf.validate.field).map.keys = {
+    sfixed64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<sfixed64, string> sfixed64_not_in = 119 [(buf.validate.field).map.keys = {
+    sfixed64: {
+      not_in: [7]
+    }
+  }];
+  map<bool, string> bool_const = 136 [(buf.validate.field).map.keys = {
+    bool: {const: true}
+  }];
+}
+
+// Every standard scalar rule on map values.
+message Values {
+  map<string, string> string_const = 1 [(buf.validate.field).map.values = {
+    string: {const: "abc"}
+  }];
+  map<string, string> string_len = 2 [(buf.validate.field).map.values = {
+    string: {len: 3}
+  }];
+  map<string, string> string_min_len = 3 [(buf.validate.field).map.values = {
+    string: {min_len: 2}
+  }];
+  map<string, string> string_max_len = 4 [(buf.validate.field).map.values = {
+    string: {max_len: 3}
+  }];
+  map<string, string> string_len_bytes = 5 [(buf.validate.field).map.values = {
+    string: {len_bytes: 3}
+  }];
+  map<string, string> string_min_bytes = 6 [(buf.validate.field).map.values = {
+    string: {min_bytes: 2}
+  }];
+  map<string, string> string_max_bytes = 7 [(buf.validate.field).map.values = {
+    string: {max_bytes: 3}
+  }];
+  map<string, string> string_pattern = 8 [(buf.validate.field).map.values = {
+    string: {pattern: "^a+$"}
+  }];
+  map<string, string> string_prefix = 9 [(buf.validate.field).map.values = {
+    string: {prefix: "pre"}
+  }];
+  map<string, string> string_suffix = 10 [(buf.validate.field).map.values = {
+    string: {suffix: "fix"}
+  }];
+  map<string, string> string_contains = 11 [(buf.validate.field).map.values = {
+    string: {contains: "mid"}
+  }];
+  map<string, string> string_not_contains = 12 [(buf.validate.field).map.values = {
+    string: {not_contains: "bad"}
+  }];
+  map<string, string> string_in = 13 [(buf.validate.field).map.values = {
+    string: {
+      in: [
+        "a",
+        "b"
+      ]
+    }
+  }];
+  map<string, string> string_not_in = 14 [(buf.validate.field).map.values = {
+    string: {
+      not_in: ["x"]
+    }
+  }];
+  map<string, string> string_email = 15 [(buf.validate.field).map.values = {
+    string: {email: true}
+  }];
+  map<string, string> string_hostname = 16 [(buf.validate.field).map.values = {
+    string: {hostname: true}
+  }];
+  map<string, string> string_ip = 17 [(buf.validate.field).map.values = {
+    string: {ip: true}
+  }];
+  map<string, string> string_ipv4 = 18 [(buf.validate.field).map.values = {
+    string: {ipv4: true}
+  }];
+  map<string, string> string_ipv6 = 19 [(buf.validate.field).map.values = {
+    string: {ipv6: true}
+  }];
+  map<string, string> string_uri = 20 [(buf.validate.field).map.values = {
+    string: {uri: true}
+  }];
+  map<string, string> string_uri_ref = 21 [(buf.validate.field).map.values = {
+    string: {uri_ref: true}
+  }];
+  map<string, string> string_address = 22 [(buf.validate.field).map.values = {
+    string: {address: true}
+  }];
+  map<string, string> string_uuid = 23 [(buf.validate.field).map.values = {
+    string: {uuid: true}
+  }];
+  map<string, string> string_tuuid = 24 [(buf.validate.field).map.values = {
+    string: {tuuid: true}
+  }];
+  map<string, string> string_ip_with_prefixlen = 25 [(buf.validate.field).map.values = {
+    string: {ip_with_prefixlen: true}
+  }];
+  map<string, string> string_ipv4_with_prefixlen = 26 [(buf.validate.field).map.values = {
+    string: {ipv4_with_prefixlen: true}
+  }];
+  map<string, string> string_ipv6_with_prefixlen = 27 [(buf.validate.field).map.values = {
+    string: {ipv6_with_prefixlen: true}
+  }];
+  map<string, string> string_ip_prefix = 28 [(buf.validate.field).map.values = {
+    string: {ip_prefix: true}
+  }];
+  map<string, string> string_ipv4_prefix = 29 [(buf.validate.field).map.values = {
+    string: {ipv4_prefix: true}
+  }];
+  map<string, string> string_ipv6_prefix = 30 [(buf.validate.field).map.values = {
+    string: {ipv6_prefix: true}
+  }];
+  map<string, string> string_host_and_port = 31 [(buf.validate.field).map.values = {
+    string: {host_and_port: true}
+  }];
+  map<string, string> string_ulid = 32 [(buf.validate.field).map.values = {
+    string: {ulid: true}
+  }];
+  map<string, string> string_protobuf_fqn = 33 [(buf.validate.field).map.values = {
+    string: {protobuf_fqn: true}
+  }];
+  map<string, string> string_protobuf_dot_fqn = 34 [(buf.validate.field).map.values = {
+    string: {protobuf_dot_fqn: true}
+  }];
+  map<string, string> string_well_known_regex = 35 [(buf.validate.field).map.values = {
+    string: {well_known_regex: KNOWN_REGEX_HTTP_HEADER_NAME}
+  }];
+  map<string, bytes> bytes_const = 36 [(buf.validate.field).map.values = {
+    bytes: {const: "abc"}
+  }];
+  map<string, bytes> bytes_len = 37 [(buf.validate.field).map.values = {
+    bytes: {len: 3}
+  }];
+  map<string, bytes> bytes_min_len = 38 [(buf.validate.field).map.values = {
+    bytes: {min_len: 2}
+  }];
+  map<string, bytes> bytes_max_len = 39 [(buf.validate.field).map.values = {
+    bytes: {max_len: 3}
+  }];
+  map<string, bytes> bytes_pattern = 40 [(buf.validate.field).map.values = {
+    bytes: {pattern: "^a+$"}
+  }];
+  map<string, bytes> bytes_prefix = 41 [(buf.validate.field).map.values = {
+    bytes: {prefix: "pre"}
+  }];
+  map<string, bytes> bytes_suffix = 42 [(buf.validate.field).map.values = {
+    bytes: {suffix: "fix"}
+  }];
+  map<string, bytes> bytes_contains = 43 [(buf.validate.field).map.values = {
+    bytes: {contains: "mid"}
+  }];
+  map<string, bytes> bytes_in = 44 [(buf.validate.field).map.values = {
+    bytes: {
+      in: [
+        "a",
+        "b"
+      ]
+    }
+  }];
+  map<string, bytes> bytes_not_in = 45 [(buf.validate.field).map.values = {
+    bytes: {
+      not_in: ["x"]
+    }
+  }];
+  map<string, bytes> bytes_ip = 46 [(buf.validate.field).map.values = {
+    bytes: {ip: true}
+  }];
+  map<string, bytes> bytes_ipv4 = 47 [(buf.validate.field).map.values = {
+    bytes: {ipv4: true}
+  }];
+  map<string, bytes> bytes_ipv6 = 48 [(buf.validate.field).map.values = {
+    bytes: {ipv6: true}
+  }];
+  map<string, bytes> bytes_uuid = 49 [(buf.validate.field).map.values = {
+    bytes: {uuid: true}
+  }];
+  map<string, int32> int32_const = 50 [(buf.validate.field).map.values = {
+    int32: {const: 5}
+  }];
+  map<string, int32> int32_lt = 51 [(buf.validate.field).map.values = {
+    int32: {lt: 5}
+  }];
+  map<string, int32> int32_lte = 52 [(buf.validate.field).map.values = {
+    int32: {lte: 5}
+  }];
+  map<string, int32> int32_gt = 53 [(buf.validate.field).map.values = {
+    int32: {gt: 5}
+  }];
+  map<string, int32> int32_gte = 54 [(buf.validate.field).map.values = {
+    int32: {gte: 5}
+  }];
+  map<string, int32> int32_in = 55 [(buf.validate.field).map.values = {
+    int32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, int32> int32_not_in = 56 [(buf.validate.field).map.values = {
+    int32: {
+      not_in: [7]
+    }
+  }];
+  map<string, int64> int64_const = 57 [(buf.validate.field).map.values = {
+    int64: {const: 5}
+  }];
+  map<string, int64> int64_lt = 58 [(buf.validate.field).map.values = {
+    int64: {lt: 5}
+  }];
+  map<string, int64> int64_lte = 59 [(buf.validate.field).map.values = {
+    int64: {lte: 5}
+  }];
+  map<string, int64> int64_gt = 60 [(buf.validate.field).map.values = {
+    int64: {gt: 5}
+  }];
+  map<string, int64> int64_gte = 61 [(buf.validate.field).map.values = {
+    int64: {gte: 5}
+  }];
+  map<string, int64> int64_in = 62 [(buf.validate.field).map.values = {
+    int64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, int64> int64_not_in = 63 [(buf.validate.field).map.values = {
+    int64: {
+      not_in: [7]
+    }
+  }];
+  map<string, uint32> uint32_const = 64 [(buf.validate.field).map.values = {
+    uint32: {const: 5}
+  }];
+  map<string, uint32> uint32_lt = 65 [(buf.validate.field).map.values = {
+    uint32: {lt: 5}
+  }];
+  map<string, uint32> uint32_lte = 66 [(buf.validate.field).map.values = {
+    uint32: {lte: 5}
+  }];
+  map<string, uint32> uint32_gt = 67 [(buf.validate.field).map.values = {
+    uint32: {gt: 5}
+  }];
+  map<string, uint32> uint32_gte = 68 [(buf.validate.field).map.values = {
+    uint32: {gte: 5}
+  }];
+  map<string, uint32> uint32_in = 69 [(buf.validate.field).map.values = {
+    uint32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, uint32> uint32_not_in = 70 [(buf.validate.field).map.values = {
+    uint32: {
+      not_in: [7]
+    }
+  }];
+  map<string, uint64> uint64_const = 71 [(buf.validate.field).map.values = {
+    uint64: {const: 5}
+  }];
+  map<string, uint64> uint64_lt = 72 [(buf.validate.field).map.values = {
+    uint64: {lt: 5}
+  }];
+  map<string, uint64> uint64_lte = 73 [(buf.validate.field).map.values = {
+    uint64: {lte: 5}
+  }];
+  map<string, uint64> uint64_gt = 74 [(buf.validate.field).map.values = {
+    uint64: {gt: 5}
+  }];
+  map<string, uint64> uint64_gte = 75 [(buf.validate.field).map.values = {
+    uint64: {gte: 5}
+  }];
+  map<string, uint64> uint64_in = 76 [(buf.validate.field).map.values = {
+    uint64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, uint64> uint64_not_in = 77 [(buf.validate.field).map.values = {
+    uint64: {
+      not_in: [7]
+    }
+  }];
+  map<string, sint32> sint32_const = 78 [(buf.validate.field).map.values = {
+    sint32: {const: 5}
+  }];
+  map<string, sint32> sint32_lt = 79 [(buf.validate.field).map.values = {
+    sint32: {lt: 5}
+  }];
+  map<string, sint32> sint32_lte = 80 [(buf.validate.field).map.values = {
+    sint32: {lte: 5}
+  }];
+  map<string, sint32> sint32_gt = 81 [(buf.validate.field).map.values = {
+    sint32: {gt: 5}
+  }];
+  map<string, sint32> sint32_gte = 82 [(buf.validate.field).map.values = {
+    sint32: {gte: 5}
+  }];
+  map<string, sint32> sint32_in = 83 [(buf.validate.field).map.values = {
+    sint32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, sint32> sint32_not_in = 84 [(buf.validate.field).map.values = {
+    sint32: {
+      not_in: [7]
+    }
+  }];
+  map<string, sint64> sint64_const = 85 [(buf.validate.field).map.values = {
+    sint64: {const: 5}
+  }];
+  map<string, sint64> sint64_lt = 86 [(buf.validate.field).map.values = {
+    sint64: {lt: 5}
+  }];
+  map<string, sint64> sint64_lte = 87 [(buf.validate.field).map.values = {
+    sint64: {lte: 5}
+  }];
+  map<string, sint64> sint64_gt = 88 [(buf.validate.field).map.values = {
+    sint64: {gt: 5}
+  }];
+  map<string, sint64> sint64_gte = 89 [(buf.validate.field).map.values = {
+    sint64: {gte: 5}
+  }];
+  map<string, sint64> sint64_in = 90 [(buf.validate.field).map.values = {
+    sint64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, sint64> sint64_not_in = 91 [(buf.validate.field).map.values = {
+    sint64: {
+      not_in: [7]
+    }
+  }];
+  map<string, fixed32> fixed32_const = 92 [(buf.validate.field).map.values = {
+    fixed32: {const: 5}
+  }];
+  map<string, fixed32> fixed32_lt = 93 [(buf.validate.field).map.values = {
+    fixed32: {lt: 5}
+  }];
+  map<string, fixed32> fixed32_lte = 94 [(buf.validate.field).map.values = {
+    fixed32: {lte: 5}
+  }];
+  map<string, fixed32> fixed32_gt = 95 [(buf.validate.field).map.values = {
+    fixed32: {gt: 5}
+  }];
+  map<string, fixed32> fixed32_gte = 96 [(buf.validate.field).map.values = {
+    fixed32: {gte: 5}
+  }];
+  map<string, fixed32> fixed32_in = 97 [(buf.validate.field).map.values = {
+    fixed32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, fixed32> fixed32_not_in = 98 [(buf.validate.field).map.values = {
+    fixed32: {
+      not_in: [7]
+    }
+  }];
+  map<string, fixed64> fixed64_const = 99 [(buf.validate.field).map.values = {
+    fixed64: {const: 5}
+  }];
+  map<string, fixed64> fixed64_lt = 100 [(buf.validate.field).map.values = {
+    fixed64: {lt: 5}
+  }];
+  map<string, fixed64> fixed64_lte = 101 [(buf.validate.field).map.values = {
+    fixed64: {lte: 5}
+  }];
+  map<string, fixed64> fixed64_gt = 102 [(buf.validate.field).map.values = {
+    fixed64: {gt: 5}
+  }];
+  map<string, fixed64> fixed64_gte = 103 [(buf.validate.field).map.values = {
+    fixed64: {gte: 5}
+  }];
+  map<string, fixed64> fixed64_in = 104 [(buf.validate.field).map.values = {
+    fixed64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, fixed64> fixed64_not_in = 105 [(buf.validate.field).map.values = {
+    fixed64: {
+      not_in: [7]
+    }
+  }];
+  map<string, sfixed32> sfixed32_const = 106 [(buf.validate.field).map.values = {
+    sfixed32: {const: 5}
+  }];
+  map<string, sfixed32> sfixed32_lt = 107 [(buf.validate.field).map.values = {
+    sfixed32: {lt: 5}
+  }];
+  map<string, sfixed32> sfixed32_lte = 108 [(buf.validate.field).map.values = {
+    sfixed32: {lte: 5}
+  }];
+  map<string, sfixed32> sfixed32_gt = 109 [(buf.validate.field).map.values = {
+    sfixed32: {gt: 5}
+  }];
+  map<string, sfixed32> sfixed32_gte = 110 [(buf.validate.field).map.values = {
+    sfixed32: {gte: 5}
+  }];
+  map<string, sfixed32> sfixed32_in = 111 [(buf.validate.field).map.values = {
+    sfixed32: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, sfixed32> sfixed32_not_in = 112 [(buf.validate.field).map.values = {
+    sfixed32: {
+      not_in: [7]
+    }
+  }];
+  map<string, sfixed64> sfixed64_const = 113 [(buf.validate.field).map.values = {
+    sfixed64: {const: 5}
+  }];
+  map<string, sfixed64> sfixed64_lt = 114 [(buf.validate.field).map.values = {
+    sfixed64: {lt: 5}
+  }];
+  map<string, sfixed64> sfixed64_lte = 115 [(buf.validate.field).map.values = {
+    sfixed64: {lte: 5}
+  }];
+  map<string, sfixed64> sfixed64_gt = 116 [(buf.validate.field).map.values = {
+    sfixed64: {gt: 5}
+  }];
+  map<string, sfixed64> sfixed64_gte = 117 [(buf.validate.field).map.values = {
+    sfixed64: {gte: 5}
+  }];
+  map<string, sfixed64> sfixed64_in = 118 [(buf.validate.field).map.values = {
+    sfixed64: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, sfixed64> sfixed64_not_in = 119 [(buf.validate.field).map.values = {
+    sfixed64: {
+      not_in: [7]
+    }
+  }];
+  map<string, float> float_const = 120 [(buf.validate.field).map.values = {
+    float: {const: 5}
+  }];
+  map<string, float> float_lt = 121 [(buf.validate.field).map.values = {
+    float: {lt: 5}
+  }];
+  map<string, float> float_lte = 122 [(buf.validate.field).map.values = {
+    float: {lte: 5}
+  }];
+  map<string, float> float_gt = 123 [(buf.validate.field).map.values = {
+    float: {gt: 5}
+  }];
+  map<string, float> float_gte = 124 [(buf.validate.field).map.values = {
+    float: {gte: 5}
+  }];
+  map<string, float> float_in = 125 [(buf.validate.field).map.values = {
+    float: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, float> float_not_in = 126 [(buf.validate.field).map.values = {
+    float: {
+      not_in: [7]
+    }
+  }];
+  map<string, float> float_finite = 127 [(buf.validate.field).map.values = {
+    float: {finite: true}
+  }];
+  map<string, double> double_const = 128 [(buf.validate.field).map.values = {
+    double: {const: 5}
+  }];
+  map<string, double> double_lt = 129 [(buf.validate.field).map.values = {
+    double: {lt: 5}
+  }];
+  map<string, double> double_lte = 130 [(buf.validate.field).map.values = {
+    double: {lte: 5}
+  }];
+  map<string, double> double_gt = 131 [(buf.validate.field).map.values = {
+    double: {gt: 5}
+  }];
+  map<string, double> double_gte = 132 [(buf.validate.field).map.values = {
+    double: {gte: 5}
+  }];
+  map<string, double> double_in = 133 [(buf.validate.field).map.values = {
+    double: {
+      in: [
+        5,
+        6
+      ]
+    }
+  }];
+  map<string, double> double_not_in = 134 [(buf.validate.field).map.values = {
+    double: {
+      not_in: [7]
+    }
+  }];
+  map<string, double> double_finite = 135 [(buf.validate.field).map.values = {
+    double: {finite: true}
+  }];
+  map<string, bool> bool_const = 136 [(buf.validate.field).map.values = {
+    bool: {const: true}
+  }];
+}
+
+// The same rules on a singular field and on items report the same violations.
+message ItemMessages {
+  double weight = 1 [(buf.validate.field).double = {
+    gte: 0
+    finite: true
+  }];
+  repeated double weights = 2 [(buf.validate.field).repeated.items.double = {
+    gte: 0
+    finite: true
+  }];
+}
+
+// Item CEL rules still apply when standard item rules are set.
+message ItemCel {
+  repeated string ids = 1 [(buf.validate.field).repeated.items = {
+    string: {min_len: 1}
+    cel: {
+      id: "ids.no_space"
+      message: "must not contain spaces"
+      expression: "!this.contains(' ')"
+    }
+  }];
+}
+
+// Rules on explicit-presence scalars.
+message Presence {
+  int32 code = 1 [(buf.validate.field).int32 = {
+    in: [
+      1,
+      2
+    ]
+  }];
+  uint64 big = 2 [(buf.validate.field).uint64 = {
+    not_in: [7]
+  }];
+  float ratio = 3 [(buf.validate.field).float.const = 1];
+  double scale = 4 [(buf.validate.field).double.const = 2];
+}
+
+// Rules on wrapper values.
+message Wrappers {
+  google.protobuf.StringValue name = 1 [(buf.validate.field).string.max_bytes = 3];
+  google.protobuf.BytesValue blob = 2 [(buf.validate.field).bytes.prefix = "p"];
+  google.protobuf.Int32Value code = 3 [(buf.validate.field).int32 = {
+    in: [
+      1,
+      2
+    ]
+  }];
+  google.protobuf.DoubleValue ratio = 4 [(buf.validate.field).double.finite = true];
+  google.protobuf.UInt64Value big = 5 [(buf.validate.field).uint64 = {
+    not_in: [7]
+  }];
+}
